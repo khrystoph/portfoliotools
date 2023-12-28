@@ -2,12 +2,16 @@ package pkg
 
 import (
 	"context"
+	"fmt"
 	polygon "github.com/polygon-io/client-go/rest"
 	"github.com/polygon-io/client-go/rest/models"
 	"log"
 	"math"
 	"time"
 )
+
+const DAY = 24
+const YEAR = 365
 
 // OHLC is a struct that contains the Open, High, Low, and Close values from a range of times for a specific ticker
 type OHLC struct {
@@ -30,6 +34,26 @@ type SingleStockCandle struct {
 	timestamp      time.Time
 	volume         float64
 	weightedVolume float64
+}
+
+func truncateToDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func GetCurrAnnualReturn(currentPrice, costBasis float64, purchaseDate time.Time, isShort bool) (currentAnnualizedReturn float64, err error) {
+	hoursOwned := truncateToDay(time.Now()).Sub(truncateToDay(purchaseDate)).Hours()
+	daysOwned := hoursOwned / DAY
+	var totReturn float64
+	if !isShort {
+		totReturn = currentPrice - costBasis
+	} else {
+		totReturn = costBasis - currentPrice
+	}
+
+	fmt.Printf("Hours owned: %f.\n", hoursOwned)
+	currentAnnualizedReturn = math.Pow((totReturn+costBasis)/costBasis, YEAR/daysOwned) - 1
+
+	return currentAnnualizedReturn, nil
 }
 
 // GetStockPrices grabs a set of prices for a ticker over a duration and returns the set
