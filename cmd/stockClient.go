@@ -3,10 +3,13 @@ package main
 import (
 	"cmd/pkg"
 	"context"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"google.golang.org/appengine/log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -43,14 +46,38 @@ type StockDataConf struct {
 func main() {
 	flag.Parse()
 	var (
-		apiTokenString        = ""
 		tickerData            map[string]map[int64]pkg.SingleStockCandle
 		annualizedReturnsMode = false
+		err                   error
+		userDir               string
 	)
 
 	if endTime == "Today" {
 		endTime = time.Now().Format(time.RFC3339)
 	}
+
+	// Section parses the config file location, opens it, decodes the JSON and loads the API creds
+	userDir, err = os.UserHomeDir()
+	if err != nil {
+		fmt.Errorf("error reading user's homedir: %w", err)
+	}
+	tickerConfig = strings.Replace(tickerConfig, "~", userDir, 1)
+	if _, err = os.Stat(tickerConfig); errors.Is(err, os.ErrNotExist) {
+		fmt.Errorf("error: config file %w does not exist. exiting", tickerConfig)
+	}
+	configFile, err := os.Open(tickerConfig)
+	if err != nil {
+		fmt.Errorf("error opening the config file. %w", err)
+	}
+	defer configFile.Close()
+	configDecoder := json.NewDecoder(configFile)
+	stockDataConfig := StockDataConf{}
+	err = configDecoder.Decode(&stockDataConfig)
+	if err != nil {
+		fmt.Errorf("error decoding the json config file. exiting. error msg: %w", err)
+	}
+
+	fmt.Printf("Contents of StockDataConfig's creds: %+v", stockDataConfig)
 
 	startTimeMilli, err := time.Parse(time.RFC3339, startTime)
 	if err != nil {
@@ -77,7 +104,7 @@ func main() {
 		}
 		fmt.Printf("Current Annualized return is: %f.\n", currAnnualReturn)
 	} else {
-		tickerData, err = pkg.GetStockPrices(ticker, apiTokenString, resolution, startTimeMilli, endTimeMilli)
+		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.Creds, resolution, startTimeMilli, endTimeMilli)
 	}
 
 	if err != nil {
