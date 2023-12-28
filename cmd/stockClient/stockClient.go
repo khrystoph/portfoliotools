@@ -2,12 +2,10 @@ package main
 
 import (
 	"cmd/pkg"
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"google.golang.org/appengine/log"
 	"os"
 	"strings"
 	"time"
@@ -15,7 +13,7 @@ import (
 
 var (
 	ticker, startTime, endTime, resolution, tickerConfig string
-	costBasis, currPrice, targetAnnualizedRate           float64
+	costBasis                                            float64
 	short                                                bool
 )
 
@@ -34,25 +32,21 @@ func init() {
 		" The numeric time values represent minutes. Default resolution: day.")
 	flag.Float64Var(&costBasis, "costBasis", 1, "input the cost basis in decimal form. "+
 		"Example: 12.34")
-	flag.Float64Var(&currPrice, "currentPrice", 1, "input the current price in decimal form. "+
-		"Example: 12.34")
-	flag.Float64Var(&targetAnnualizedRate, "targetRate", .06,
-		"enter either the risk-free rate or the rate you want as your target return rate. Default is: .06 (6%).")
 	flag.BoolVar(&short, "short", false, "default: False. Presence of the flag means true.")
 }
 
 type StockDataConf struct {
-	Creds string
+	Creds           string  `json:"creds"`
+	RangeAdjustment float64 `json:"probable-range-adj"`
 }
 
 func main() {
 	flag.Parse()
 	var (
-		tickerData                  map[string]map[int64]pkg.SingleStockCandle
-		annualizedReturnsMode       = false
-		targetAnnualizedReturnsMode = false
-		err                         error
-		userDir                     string
+		tickerData            map[string]map[int64]pkg.SingleStockCandle
+		annualizedReturnsMode = false
+		err                   error
+		userDir               string
 	)
 
 	if endTime == "Today" {
@@ -95,41 +89,29 @@ func main() {
 		if val == "CAR" {
 			annualizedReturnsMode = true
 		}
-		if val == "TAR" {
-			targetAnnualizedReturnsMode = true
-		}
+	}
+	// retrieve stock ticker's prices and store in a map
+
+	tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.Creds, resolution, startTimeMilli, endTimeMilli)
+	if err != nil {
+		fmt.Errorf("unable to get stock prices")
 	}
 
-	if annualizedReturnsMode {
-		fmt.Println("Current Annualized Returns Selected")
-		currAnnualReturn, err := pkg.GetCurrAnnualReturn(currPrice, costBasis, startTimeMilli, short)
-		if err != nil {
-			log.Errorf(context.TODO(), "unable to process the current annualized return.\n")
-		}
-		fmt.Printf("Current Annualized return is: %f.\n", currAnnualReturn)
-	} else if targetAnnualizedReturnsMode {
-		targetAnnualReturn, err := pkg.GetTargetAnnualReturn(costBasis, targetAnnualizedRate, startTimeMilli, short)
-		if err != nil {
-			log.Errorf(context.TODO(), "unable to process the target annualized return")
-		}
-		fmt.Printf("Target Price is: %f.\n", targetAnnualReturn)
-	} else {
-		// retrieve stock ticker's prices and store in a map
-
-		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.Creds, resolution, startTimeMilli, endTimeMilli)
-		if err != nil {
-			fmt.Errorf("unable to get stock prices")
-		}
-
-		// Call function to calculate each day's realized volatility given each duration available (30, 60, 90)
-		tickerData = pkg.StoreRealizedVols(tickerData, ticker)
-	}
+	// Call functions to calculate each day's realized volatility, ranges, and adjusted ranges given each duration available (30, 60, 90)
+	tickerData = pkg.StoreRealizedVols(tickerData, strings.ToUpper(ticker))
+	tickerData = pkg.GetAvgVolume(tickerData)
+	tickerData = pkg.CalculateAvgVolumeRatios(tickerData)
+	tickerData = pkg.CalculateRiskRanges(tickerData)
+	tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData)
+	tickerData = pkg.CalculateVelocityOfVolatility(tickerData)
+	tickerData = pkg.CalculateRealizedVolatilityAccel(tickerData)
+	tickerData = pkg.GetProbAdjRiskRanges(tickerData, stockDataConfig.RangeAdjustment)
 
 	if err != nil {
 		fmt.Errorf("error occurred: %w", err)
 	}
-	if !annualizedReturnsMode && !targetAnnualizedReturnsMode {
-		jsonTickerData, err := json.MarshalIndent(tickerData[ticker], "", "  ")
+	if !annualizedReturnsMode {
+		jsonTickerData, err := json.MarshalIndent(tickerData[strings.ToUpper(ticker)], "", "  ")
 		if err != nil {
 			fmt.Errorf("error marshalling data into JSON string")
 		}
