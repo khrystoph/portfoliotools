@@ -56,6 +56,20 @@ func GetCurrAnnualReturn(currentPrice, costBasis float64, purchaseDate time.Time
 	return currentAnnualizedReturn, nil
 }
 
+/* GetTargetAnnual Return uses the formula: AP = ((P + G) / P) ^ (365 / n) - 1 solving for G given
+ * AP, P, and n. N is days owned, P is costBasis, and AP is the risk-free rate/target rate
+ * The new formula should look like this: G = (365/n)√(AP + 1) * P - P
+ * We can drop the "-P" at the end because we don't just want the gains, we want the new price as the price target.
+ * Additionally, since a root of a number is an inverse power, we can flip the 365/n to be n/365 and use math.Pow.
+ */
+func GetTargetAnnualReturn(costBasis, riskFreeRate float64, purchaseDate time.Time) (targetAnnualReturnPrice float64, err error) {
+	hoursOwned := truncateToDay(time.Now()).Sub(truncateToDay(purchaseDate)).Hours()
+	daysOwned := hoursOwned / DAY
+
+	targetAnnualReturnPrice = math.Pow(riskFreeRate+1, daysOwned/YEAR) * costBasis
+	return targetAnnualReturnPrice, nil
+}
+
 // GetStockPrices grabs a set of prices for a ticker over a duration and returns the set
 func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTimeMilli time.Time) (stockPrices map[string]map[int64]SingleStockCandle, err error) {
 	polygonClient := polygon.New(apiToken)

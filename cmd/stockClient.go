@@ -15,7 +15,7 @@ import (
 
 var (
 	ticker, startTime, endTime, resolution, tickerConfig string
-	costBasis, currPrice                                 float64
+	costBasis, currPrice, targetAnnualizedRate           float64
 	short                                                bool
 )
 
@@ -36,6 +36,8 @@ func init() {
 		"Example: 12.34")
 	flag.Float64Var(&currPrice, "currentPrice", 1, "input the current price in decimal form. "+
 		"Example: 12.34")
+	flag.Float64Var(&targetAnnualizedRate, "targetRate", .06,
+		"enter either the risk-free rate or the rate you want as your target return rate. Default is: .06 (6%).")
 	flag.BoolVar(&short, "short", false, "default: False. Presence of the flag means true.")
 }
 
@@ -46,10 +48,11 @@ type StockDataConf struct {
 func main() {
 	flag.Parse()
 	var (
-		tickerData            map[string]map[int64]pkg.SingleStockCandle
-		annualizedReturnsMode = false
-		err                   error
-		userDir               string
+		tickerData                  map[string]map[int64]pkg.SingleStockCandle
+		annualizedReturnsMode       = false
+		targetAnnualizedReturnsMode = false
+		err                         error
+		userDir                     string
 	)
 
 	if endTime == "Today" {
@@ -63,7 +66,7 @@ func main() {
 	}
 	tickerConfig = strings.Replace(tickerConfig, "~", userDir, 1)
 	if _, err = os.Stat(tickerConfig); errors.Is(err, os.ErrNotExist) {
-		fmt.Errorf("error: config file %w does not exist. exiting", tickerConfig)
+		fmt.Errorf("error: config file %s does not exist. exiting", tickerConfig)
 	}
 	configFile, err := os.Open(tickerConfig)
 	if err != nil {
@@ -76,8 +79,6 @@ func main() {
 	if err != nil {
 		fmt.Errorf("error decoding the json config file. exiting. error msg: %w", err)
 	}
-
-	fmt.Printf("Contents of StockDataConfig's creds: %+v", stockDataConfig)
 
 	startTimeMilli, err := time.Parse(time.RFC3339, startTime)
 	if err != nil {
@@ -94,15 +95,24 @@ func main() {
 		if val == "CAR" {
 			annualizedReturnsMode = true
 		}
+		if val == "TAR" {
+			targetAnnualizedReturnsMode = true
+		}
 	}
 
 	if annualizedReturnsMode {
 		fmt.Println("Current Annualized Returns Selected")
 		currAnnualReturn, err := pkg.GetCurrAnnualReturn(currPrice, costBasis, startTimeMilli, short)
 		if err != nil {
-			log.Errorf(context.TODO(), "unable to process the current anualized return.\n")
+			log.Errorf(context.TODO(), "unable to process the current annualized return.\n")
 		}
 		fmt.Printf("Current Annualized return is: %f.\n", currAnnualReturn)
+	} else if targetAnnualizedReturnsMode {
+		targetAnnualReturn, err := pkg.GetTargetAnnualReturn(costBasis, targetAnnualizedRate, startTimeMilli)
+		if err != nil {
+			log.Errorf(context.TODO(), "unable to process the target annualized return")
+		}
+		fmt.Printf("Target Price is: %f.\n", targetAnnualReturn)
 	} else {
 		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.Creds, resolution, startTimeMilli, endTimeMilli)
 	}
