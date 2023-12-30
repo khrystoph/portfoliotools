@@ -25,15 +25,15 @@ type OHLC struct {
 }
 
 type SingleStockCandle struct {
-	ticker         string
-	close          float64
-	high           float64
-	low            float64
-	open           float64
-	transactions   int64
-	timestamp      time.Time
-	volume         float64
-	weightedVolume float64
+	Ticker         string    `json:"ticker"`
+	Close          float64   `json:"close"`
+	High           float64   `json:"high"`
+	Low            float64   `json:"low"`
+	Open           float64   `json:"open"`
+	Transactions   int64     `json:"transactions"`
+	Timestamp      time.Time `json:"timestamp"`
+	Volume         float64   `json:"volume"`
+	WeightedVolume float64   `json:"weightedvolume"`
 }
 
 func truncateToDay(t time.Time) time.Time {

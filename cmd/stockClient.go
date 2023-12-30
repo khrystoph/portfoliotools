@@ -120,7 +120,11 @@ func main() {
 	if err != nil {
 		return
 	}
-	if !annualizedReturnsMode {
-		fmt.Printf("%+v\n", tickerData)
+	if !annualizedReturnsMode && !targetAnnualizedReturnsMode {
+		jsonTickerData, err := json.MarshalIndent(tickerData, "", "  ")
+		if err != nil {
+			fmt.Errorf("error marshalling data into JSON string")
+		}
+		fmt.Printf("%s", string(jsonTickerData))
 	}
 }
