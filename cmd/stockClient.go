@@ -48,11 +48,13 @@ type StockDataConf struct {
 func main() {
 	flag.Parse()
 	var (
-		tickerData                  map[string]map[int64]pkg.SingleStockCandle
-		annualizedReturnsMode       = false
-		targetAnnualizedReturnsMode = false
-		err                         error
-		userDir                     string
+		tickerData                                                    map[string]map[int64]pkg.SingleStockCandle
+		annualizedReturnsMode                                         = false
+		targetAnnualizedReturnsMode                                   = false
+		err                                                           error
+		userDir                                                       string
+		periodRealizedVol30, periodRealizedVol60, periodRealizedVol90 []float64
+		realizedVol30, realizedVol60, realizedVol90                   float64
 	)
 
 	if endTime == "Today" {
@@ -115,16 +117,46 @@ func main() {
 		fmt.Printf("Target Price is: %f.\n", targetAnnualReturn)
 	} else {
 		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.Creds, resolution, startTimeMilli, endTimeMilli)
-	}
-
-	if err != nil {
-		return
-	}
-	if !annualizedReturnsMode && !targetAnnualizedReturnsMode {
-		jsonTickerData, err := json.MarshalIndent(tickerData, "", "  ")
+		if err != nil {
+			fmt.Errorf("unable to get stock prices")
+		}
+		jsonTickerData, err := json.MarshalIndent(tickerData[ticker], "", "  ")
 		if err != nil {
 			fmt.Errorf("error marshalling data into JSON string")
 		}
-		fmt.Printf("%s", string(jsonTickerData))
+		realizedVolPrices := make([]float64, len(tickerData[ticker]))
+		for stock := range tickerData {
+			for stockByDate := range tickerData[stock] {
+				realizedVolPrices = append(realizedVolPrices, tickerData[stock][stockByDate].Close)
+			}
+		}
+		fmt.Printf("%s\n", string(jsonTickerData))
+		if len(realizedVolPrices) >= 90 {
+			periodRealizedVol90 = realizedVolPrices[len(realizedVolPrices)-91 : len(realizedVolPrices)-1]
+			realizedVol90 = pkg.RealizedVolatility(periodRealizedVol90)
+			fmt.Printf("90 day RealizedVolatility: %f\n", realizedVol90)
+		}
+		if len(realizedVolPrices) >= 60 {
+			periodRealizedVol60 = realizedVolPrices[len(realizedVolPrices)-61 : len(realizedVolPrices)-1]
+			realizedVol60 = pkg.RealizedVolatility(periodRealizedVol60)
+			fmt.Printf("60 day RealizedVolatility: %f\n", realizedVol60)
+		}
+		if len(realizedVolPrices) >= 30 {
+			periodRealizedVol30 = realizedVolPrices[len(realizedVolPrices)-31 : len(realizedVolPrices)-1]
+			realizedVol30 = pkg.RealizedVolatility(periodRealizedVol30)
+			fmt.Printf("30 day RealizedVolatility: %f\n", realizedVol30)
+		}
+	}
+
+	if err != nil {
+		fmt.Errorf("error occurred: %w", err)
+	}
+	if !annualizedReturnsMode && !targetAnnualizedReturnsMode {
+		jsonTickerData, err := json.MarshalIndent(tickerData[ticker], "", "  ")
+		if err != nil {
+			fmt.Errorf("error marshalling data into JSON string")
+		}
+		fmt.Printf("%v\n", string(jsonTickerData))
+		fmt.Printf("I made it into the final section\n")
 	}
 }
