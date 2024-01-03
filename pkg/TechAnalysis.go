@@ -25,15 +25,16 @@ type OHLC struct {
 }
 
 type SingleStockCandle struct {
-	Ticker         string    `json:"ticker"`
-	Close          float64   `json:"close"`
-	High           float64   `json:"high"`
-	Low            float64   `json:"low"`
-	Open           float64   `json:"open"`
-	Transactions   int64     `json:"transactions"`
-	Timestamp      time.Time `json:"timestamp"`
-	Volume         float64   `json:"volume"`
-	WeightedVolume float64   `json:"weightedvolume"`
+	Ticker             string    `json:"ticker"`
+	Close              float64   `json:"close"`
+	High               float64   `json:"high"`
+	Low                float64   `json:"low"`
+	Open               float64   `json:"open"`
+	Transactions       int64     `json:"transactions"`
+	Timestamp          time.Time `json:"timestamp"`
+	Volume             float64   `json:"volume"`
+	WeightedVolume     float64   `json:"weighted-volume"`
+	RealizedVolatility float64   `json:"realized-volatility"`
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -103,6 +104,7 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 			time.Time(iter.Item().Timestamp),
 			iter.Item().Volume,
 			iter.Item().VWAP,
+			0.0,
 		}
 	}
 	if iter.Err() != nil {
@@ -137,7 +139,7 @@ enter a trade.
 func RealizedVolatility(prices []float64) (realizedVol float64) {
 	var sumRealizedVar float64
 	for index, price := range prices {
-		if index+1 > len(prices) {
+		if index+1 >= len(prices) {
 			break
 		}
 		priceVariance := RealizedVariance(price, prices[index+1])
