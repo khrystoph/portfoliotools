@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	polygon "github.com/polygon-io/client-go/rest"
 	"github.com/polygon-io/client-go/rest/models"
@@ -69,10 +70,15 @@ func GetTargetAnnualReturn(costBasis, riskFreeRate float64, purchaseDate time.Ti
 
 	baseReturn := math.Pow(riskFreeRate+1, daysOwned/YEAR) * costBasis
 
+	if math.IsNaN(baseReturn) {
+		err = errors.New("result was NaN")
+		return math.NaN(), err
+	}
+
 	if !isShort {
 		targetAnnualReturnPrice = baseReturn
 	} else {
-		targetAnnualReturnPrice = costBasis - (baseReturn - costBasis)
+		targetAnnualReturnPrice = 2*costBasis - baseReturn
 	}
 	return targetAnnualReturnPrice, nil
 }
