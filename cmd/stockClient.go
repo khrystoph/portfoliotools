@@ -110,7 +110,7 @@ func main() {
 		}
 		fmt.Printf("Current Annualized return is: %f.\n", currAnnualReturn)
 	} else if targetAnnualizedReturnsMode {
-		targetAnnualReturn, err := pkg.GetTargetAnnualReturn(costBasis, targetAnnualizedRate, startTimeMilli)
+		targetAnnualReturn, err := pkg.GetTargetAnnualReturn(costBasis, targetAnnualizedRate, startTimeMilli, short)
 		if err != nil {
 			log.Errorf(context.TODO(), "unable to process the target annualized return")
 		}
