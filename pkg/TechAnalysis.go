@@ -8,11 +8,16 @@ import (
 	"github.com/polygon-io/client-go/rest/models"
 	"log"
 	"math"
+	"sort"
 	"time"
 )
 
 const DAY = 24
 const YEAR = 365
+const LONGDURATION = 91
+const MEDIUMDURATION = 61
+const SHORTDURATION = 31
+const TRADINGDAYSPERYEAR = 252
 
 // OHLC is a struct that contains the Open, High, Low, and Close values from a range of times for a specific ticker
 type OHLC struct {
@@ -26,16 +31,24 @@ type OHLC struct {
 }
 
 type SingleStockCandle struct {
-	Ticker             string    `json:"ticker"`
-	Close              float64   `json:"close"`
-	High               float64   `json:"high"`
-	Low                float64   `json:"low"`
-	Open               float64   `json:"open"`
-	Transactions       int64     `json:"transactions"`
-	Timestamp          time.Time `json:"timestamp"`
-	Volume             float64   `json:"volume"`
-	WeightedVolume     float64   `json:"weighted-volume"`
-	RealizedVolatility float64   `json:"realized-volatility"`
+	Ticker               string             `json:"ticker"`
+	Close                float64            `json:"close"`
+	High                 float64            `json:"high"`
+	Low                  float64            `json:"low"`
+	Open                 float64            `json:"open"`
+	Transactions         int64              `json:"transactions"`
+	Timestamp            time.Time          `json:"timestamp"`
+	Volume               float64            `json:"volume"`
+	WeightedVolume       float64            `json:"weighted-volume"`
+	ThirtyDaysPrices     map[string]float64 `json:"30-days-prices"`
+	SixtyDaysPrices      map[string]float64 `json:"60-days-prices"`
+	NinetyDaysPrices     map[string]float64 `json:"90-days-prices"`
+	RealizedVolatility30 float64            `json:"30-day-realized-volatility"`
+	RealizedVolatility60 float64            `json:"60-day-realized-volatility"`
+	RealizedVolatility90 float64            `json:"90-day-realized-volatility"`
+	TradeRange           float64            `json:"trade-range"`
+	TrendRange           float64            `json:"trend-range"`
+	TailRange            float64            `json:"tail-range"`
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -116,6 +129,18 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 			time.Time(iter.Item().Timestamp),
 			iter.Item().Volume,
 			iter.Item().VWAP,
+			// initialize containers for last n days of prices for various durations
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
+			// values filled below here are calculated later in the process and filled with zeros for now
+			// RealizedVolatility values over various durations
+			0.0,
+			0.0,
+			0.0,
+			// Trade, Trend, and Tail range values
+			0.0,
+			0.0,
 			0.0,
 		}
 	}
@@ -134,13 +159,41 @@ func ImpliedVolatility() (impliedVol float64, err error) {
 	return
 }
 
-/*
-RealizedVariance calculates the variability in price of the current day as compared with the previous day. This is
-foundational to calculating realized volatility.
-*/
-func RealizedVariance(currPrice, prevPrice float64) (periodVariance float64) {
-	periodVariance = math.Log10(currPrice) - math.Log10(prevPrice)
-	return
+// This section of functions deals specifically with calculating volatility of an asset
+
+// calculateDailyReturn generates a slice of float64 values that represents the % return day over day
+func calculateDailyReturn(prices []float64) []float64 {
+	var returns []float64
+
+	for i := 1; i < len(prices); i++ {
+		dailyReturn := (prices[i] - prices[i-1]) / prices[i-1] * 100
+		returns = append(returns, dailyReturn)
+	}
+
+	return returns
+}
+
+// calculateVariance gives the average variance
+func calculateVariance(returns []float64) float64 {
+	var sum float64
+	mean := calculateMean(returns)
+
+	for _, r := range returns {
+		sum += math.Pow(r-mean, 2)
+	}
+
+	return sum / float64(len(returns)-1)
+}
+
+// calculateMean calculates the arithmetic mean of a float64 slice of inputs and returns the resulting mean
+func calculateMean(returns []float64) float64 {
+	var sum float64
+
+	for _, r := range returns {
+		sum += r
+	}
+
+	return sum / float64(len(returns))
 }
 
 /*
@@ -149,14 +202,51 @@ that has impacted price and compare with Implied Volatility to evaluate the risk
 enter a trade.
 */
 func RealizedVolatility(prices []float64) (realizedVol float64) {
-	var sumRealizedVar float64
-	for index, price := range prices {
-		if index+1 >= len(prices) {
-			break
-		}
-		priceVariance := RealizedVariance(price, prices[index+1])
-		sumRealizedVar += math.Pow(priceVariance, 2)
+	returns := calculateDailyReturn(prices)
+	variance := calculateVariance(returns)
+	return math.Sqrt(TRADINGDAYSPERYEAR) * variance
+}
+
+func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticker string) (stockPriceData map[string]map[int64]SingleStockCandle) {
+	var dateKeys []int64
+	for dateKey := range stockPrices[ticker] {
+		dateKeys = append(dateKeys, dateKey)
 	}
-	realizedVol = math.Sqrt(sumRealizedVar)
-	return
+	reverseDateKeys := dateKeys
+	// Sort our date keys in reverse order such that the most recent date is first and the oldest date is last
+	sort.Slice(reverseDateKeys, func(i, j int) bool {
+		return reverseDateKeys[i] > reverseDateKeys[j]
+	})
+	for index, date := range reverseDateKeys {
+		stockCandle := stockPrices[ticker][date]
+		if index+SHORTDURATION < len(reverseDateKeys) {
+			volDatesShort := reverseDateKeys[index : index+SHORTDURATION]
+			stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, stockCandle, ticker)
+		}
+		if index+MEDIUMDURATION < len(reverseDateKeys) {
+			volDatesMed := reverseDateKeys[index : index+MEDIUMDURATION]
+			stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, stockCandle, ticker)
+		}
+		if index+LONGDURATION < len(reverseDateKeys) {
+			volDatesMed := reverseDateKeys[index : index+LONGDURATION]
+			stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesMed, stockPrices, stockCandle, ticker)
+		}
+		stockPrices[ticker][date] = stockCandle
+	}
+
+	return stockPrices
+}
+
+// calculateVolatility calculates the realized volatility for various timeframes
+func calculateVolatility(volDatesArray []int64,
+	stockPrices map[string]map[int64]SingleStockCandle, stockCandle SingleStockCandle, ticker string) (stockData map[string]float64, periodVol float64) {
+	var prices []float64
+	var priceMap = make(map[string]float64)
+	for _, dateMilli := range volDatesArray {
+		dateOnly := time.UnixMilli(dateMilli).Format(time.DateOnly)
+		priceMap[dateOnly] = stockPrices[ticker][dateMilli].Close
+		prices = append(prices, stockPrices[ticker][dateMilli].Close)
+	}
+	realizedVolPeriod := RealizedVolatility(prices)
+	return priceMap, realizedVolPeriod
 }

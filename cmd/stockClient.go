@@ -48,13 +48,11 @@ type StockDataConf struct {
 func main() {
 	flag.Parse()
 	var (
-		tickerData                                                    map[string]map[int64]pkg.SingleStockCandle
-		annualizedReturnsMode                                         = false
-		targetAnnualizedReturnsMode                                   = false
-		err                                                           error
-		userDir                                                       string
-		periodRealizedVol30, periodRealizedVol60, periodRealizedVol90 []float64
-		realizedVol30, realizedVol60, realizedVol90                   float64
+		tickerData                  map[string]map[int64]pkg.SingleStockCandle
+		annualizedReturnsMode       = false
+		targetAnnualizedReturnsMode = false
+		err                         error
+		userDir                     string
 	)
 
 	if endTime == "Today" {
@@ -116,28 +114,15 @@ func main() {
 		}
 		fmt.Printf("Target Price is: %f.\n", targetAnnualReturn)
 	} else {
+		// retrieve stock ticker's prices and store in a map
+
 		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.Creds, resolution, startTimeMilli, endTimeMilli)
 		if err != nil {
 			fmt.Errorf("unable to get stock prices")
 		}
-		realizedVolPrices := make([]float64, len(tickerData[ticker]))
-		for stock := range tickerData {
-			for stockByDate := range tickerData[stock] {
-				realizedVolPrices = append(realizedVolPrices, tickerData[stock][stockByDate].Close)
-			}
-		}
-		if len(realizedVolPrices) >= 90 {
-			periodRealizedVol90 = realizedVolPrices[len(realizedVolPrices)-91 : len(realizedVolPrices)-1]
-			realizedVol90 = pkg.RealizedVolatility(periodRealizedVol90)
-		}
-		if len(realizedVolPrices) >= 60 {
-			periodRealizedVol60 = realizedVolPrices[len(realizedVolPrices)-61 : len(realizedVolPrices)-1]
-			realizedVol60 = pkg.RealizedVolatility(periodRealizedVol60)
-		}
-		if len(realizedVolPrices) >= 30 {
-			periodRealizedVol30 = realizedVolPrices[len(realizedVolPrices)-31 : len(realizedVolPrices)-1]
-			realizedVol30 = pkg.RealizedVolatility(periodRealizedVol30)
-		}
+
+		// Call function to calculate each day's realized volatility given each duration available (30, 60, 90)
+		tickerData = pkg.StoreRealizedVols(tickerData, ticker)
 	}
 
 	if err != nil {
@@ -148,9 +133,6 @@ func main() {
 		if err != nil {
 			fmt.Errorf("error marshalling data into JSON string")
 		}
-		fmt.Printf("%s\n", string(jsonTickerData))
-		fmt.Printf("30 day RealizedVolatility: %f\n", realizedVol30)
-		fmt.Printf("60 day RealizedVolatility: %f\n", realizedVol60)
-		fmt.Printf("90 day RealizedVolatility: %f\n", realizedVol90)
+		fmt.Printf("%v\n", string(jsonTickerData))
 	}
 }
