@@ -213,17 +213,30 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 	})
 	for index, date := range reverseDateKeys {
 		stockCandle := stockPrices[ticker][date]
-		if index+SHORTDURATION < len(reverseDateKeys) {
-			volDatesShort := reverseDateKeys[index : index+SHORTDURATION]
+		shortDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*SHORTDURATION).UnixMilli()
+		medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
+		longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
+
+		if index+SHORTDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= shortDurationStartMilli {
+			var volDatesShort []int64
+			for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
+				volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
+			}
 			stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
 		}
-		if index+MEDIUMDURATION < len(reverseDateKeys) {
-			volDatesMed := reverseDateKeys[index : index+MEDIUMDURATION]
+		if index+MEDIUMDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= medDurationStartMilli {
+			var volDatesMed []int64
+			for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
+				volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
+			}
 			stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
 		}
-		if index+LONGDURATION < len(reverseDateKeys) {
-			volDatesMed := reverseDateKeys[index : index+LONGDURATION]
-			stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesMed, stockPrices, ticker)
+		if index+LONGDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= longDurationStartMilli {
+			var volDatesLong []int64
+			for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
+				volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
+			}
+			stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
 		}
 		stockPrices[ticker][date] = stockCandle
 	}
