@@ -282,7 +282,7 @@ func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (st
 
 func calculateRiskRange(price, volatility, riskRangeDuration float64) (riskRange map[string]float64) {
 	riskRange = make(map[string]float64)
-	riskRange["high"] = price + (1+volatility)/TRADINGDAYSPERYEAR*riskRangeDuration
-	riskRange["low"] = price - (1-volatility)/TRADINGDAYSPERYEAR*riskRangeDuration
+	riskRange["high"] = (1 + (volatility / TRADINGDAYSPERYEAR * riskRangeDuration)) * price
+	riskRange["low"] = (1 - (volatility / TRADINGDAYSPERYEAR * riskRangeDuration)) * price
 	return
 }
