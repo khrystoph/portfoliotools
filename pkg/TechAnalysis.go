@@ -266,13 +266,13 @@ func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (st
 		for day := range stockPrices[ticker] {
 			dailyTicker := stockPrices[ticker][day]
 			if stockPrices[ticker][day].RealizedVolatility30 != 0.0 {
-				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].Close, stockPrices[ticker][day].RealizedVolatility30, SHORTDURATION)
+				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility30, SHORTDURATION)
 			}
 			if stockPrices[ticker][day].RealizedVolatility60 != 0.0 {
-				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].Close, stockPrices[ticker][day].RealizedVolatility60, MEDIUMDURATION)
+				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility60, MEDIUMDURATION)
 			}
 			if stockPrices[ticker][day].RealizedVolatility90 != 0.0 {
-				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].Close, stockPrices[ticker][day].RealizedVolatility90, LONGDURATION)
+				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility90, LONGDURATION)
 			}
 			stockPrices[ticker][day] = dailyTicker
 		}
