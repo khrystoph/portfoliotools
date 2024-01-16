@@ -123,6 +123,7 @@ func main() {
 
 		// Call function to calculate each day's realized volatility given each duration available (30, 60, 90)
 		tickerData = pkg.StoreRealizedVols(tickerData, ticker)
+		tickerData = pkg.CalculateRiskRanges(tickerData)
 	}
 
 	if err != nil {

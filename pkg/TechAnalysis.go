@@ -47,9 +47,9 @@ type SingleStockCandle struct {
 	RealizedVolatility30 float64            `json:"30-day-realized-volatility"`
 	RealizedVolatility60 float64            `json:"60-day-realized-volatility"`
 	RealizedVolatility90 float64            `json:"90-day-realized-volatility"`
-	TradeRange           float64            `json:"trade-range"`
-	TrendRange           float64            `json:"trend-range"`
-	TailRange            float64            `json:"tail-range"`
+	TradeRange           map[string]float64 `json:"trade-range"`
+	TrendRange           map[string]float64 `json:"trend-range"`
+	TailRange            map[string]float64 `json:"tail-range"`
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -140,9 +140,9 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 			0.0,
 			0.0,
 			// Trade, Trend, and Tail range values
-			0.0,
-			0.0,
-			0.0,
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
 		}
 	}
 	if iter.Err() != nil {
@@ -222,6 +222,7 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 			for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
 				volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
 			}
+			fmt.Printf("number of days in short duration vol dates slice: %d\n", len(volDatesShort))
 			stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
 		}
 		if index+MEDIUMDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= medDurationStartMilli {
@@ -229,6 +230,7 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 			for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
 				volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
 			}
+			fmt.Printf("number of days in medium duration vol dates slice: %d\n", len(volDatesMed))
 			stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
 		}
 		if index+LONGDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= longDurationStartMilli {
@@ -236,6 +238,7 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 			for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
 				volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
 			}
+			fmt.Printf("number of days in long duration vol dates slice: %d\n\n", len(volDatesLong))
 			stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
 		}
 		stockPrices[ticker][date] = stockCandle
@@ -256,4 +259,30 @@ func calculateVolatility(volDatesArray []int64,
 	}
 	realizedVolPeriod := RealizedVolatility(prices)
 	return priceMap, realizedVolPeriod
+}
+
+func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		for day := range stockPrices[ticker] {
+			dailyTicker := stockPrices[ticker][day]
+			if stockPrices[ticker][day].RealizedVolatility30 != 0.0 {
+				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].Close, stockPrices[ticker][day].RealizedVolatility30, SHORTDURATION)
+			}
+			if stockPrices[ticker][day].RealizedVolatility60 != 0.0 {
+				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].Close, stockPrices[ticker][day].RealizedVolatility60, MEDIUMDURATION)
+			}
+			if stockPrices[ticker][day].RealizedVolatility90 != 0.0 {
+				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].Close, stockPrices[ticker][day].RealizedVolatility90, LONGDURATION)
+			}
+			stockPrices[ticker][day] = dailyTicker
+		}
+	}
+	return stockPrices
+}
+
+func calculateRiskRange(price, volatility, riskRangeDuration float64) (riskRange map[string]float64) {
+	riskRange = make(map[string]float64)
+	riskRange["high"] = price + (1+volatility)/TRADINGDAYSPERYEAR*riskRangeDuration
+	riskRange["low"] = price - (1-volatility)/TRADINGDAYSPERYEAR*riskRangeDuration
+	return
 }
