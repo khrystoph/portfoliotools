@@ -19,3 +19,9 @@
 
 # Go workspace file
 go.work
+
+# ignore the built binary
+cmd/stockclient
+
+# ignore the intellij folder
+.idea

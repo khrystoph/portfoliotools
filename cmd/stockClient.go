@@ -122,7 +122,7 @@ func main() {
 		}
 
 		// Call function to calculate each day's realized volatility given each duration available (30, 60, 90)
-		tickerData = pkg.StoreRealizedVols(tickerData, ticker)
+		tickerData = pkg.StoreRealizedVols(tickerData, strings.ToUpper(ticker))
 		tickerData = pkg.CalculateRiskRanges(tickerData)
 	}
 
@@ -130,7 +130,7 @@ func main() {
 		fmt.Errorf("error occurred: %w", err)
 	}
 	if !annualizedReturnsMode && !targetAnnualizedReturnsMode {
-		jsonTickerData, err := json.MarshalIndent(tickerData[ticker], "", "  ")
+		jsonTickerData, err := json.MarshalIndent(tickerData[strings.ToUpper(ticker)], "", "  ")
 		if err != nil {
 			fmt.Errorf("error marshalling data into JSON string")
 		}
