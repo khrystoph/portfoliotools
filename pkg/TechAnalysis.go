@@ -32,24 +32,27 @@ type OHLC struct {
 }
 
 type SingleStockCandle struct {
-	Ticker               string             `json:"ticker"`
-	Close                float64            `json:"close"`
-	High                 float64            `json:"high"`
-	Low                  float64            `json:"low"`
-	Open                 float64            `json:"open"`
-	Transactions         int64              `json:"transactions"`
-	Timestamp            time.Time          `json:"timestamp"`
-	Volume               float64            `json:"volume"`
-	WeightedVolume       float64            `json:"weighted-volume"`
-	ThirtyDaysPrices     map[string]float64 `json:"30-days-prices"`
-	SixtyDaysPrices      map[string]float64 `json:"60-days-prices"`
-	NinetyDaysPrices     map[string]float64 `json:"90-days-prices"`
-	RealizedVolatility30 float64            `json:"30-day-realized-volatility"`
-	RealizedVolatility60 float64            `json:"60-day-realized-volatility"`
-	RealizedVolatility90 float64            `json:"90-day-realized-volatility"`
-	TradeRange           map[string]float64 `json:"trade-range"`
-	TrendRange           map[string]float64 `json:"trend-range"`
-	TailRange            map[string]float64 `json:"tail-range"`
+	Ticker                string             `json:"ticker"`
+	Close                 float64            `json:"close"`
+	High                  float64            `json:"high"`
+	Low                   float64            `json:"low"`
+	Open                  float64            `json:"open"`
+	Transactions          int64              `json:"transactions"`
+	Timestamp             time.Time          `json:"timestamp"`
+	Volume                float64            `json:"volume"`
+	WeightedVolume        float64            `json:"weighted-volume"`
+	ThirtyDaysPrices      map[string]float64 `json:"30-days-prices"`
+	SixtyDaysPrices       map[string]float64 `json:"60-days-prices"`
+	NinetyDaysPrices      map[string]float64 `json:"90-days-prices"`
+	RealizedVolatility30  float64            `json:"30-day-realized-volatility"`
+	RealizedVolatility60  float64            `json:"60-day-realized-volatility"`
+	RealizedVolatility90  float64            `json:"90-day-realized-volatility"`
+	TradeRange            map[string]float64 `json:"trade-range"`
+	TrendRange            map[string]float64 `json:"trend-range"`
+	TailRange             map[string]float64 `json:"tail-range"`
+	VelocityRealizedVol30 float64            `json:"30-day-realized-volatility-velocity"`
+	VelocityRealizedVol60 float64            `json:"60-day-realized-volatility-velocity"`
+	VelocityRealizedVol90 float64            `json:"90-day-realized-volatility-velocity"`
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -143,6 +146,9 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 			make(map[string]float64),
 			make(map[string]float64),
 			make(map[string]float64),
+			0.0,
+			0.0,
+			0.0,
 		}
 	}
 	if iter.Err() != nil {
@@ -222,7 +228,6 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 			for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
 				volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
 			}
-			fmt.Printf("number of days in short duration vol dates slice: %d\n", len(volDatesShort))
 			stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
 		}
 		if index+MEDIUMDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= medDurationStartMilli {
@@ -230,7 +235,6 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 			for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
 				volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
 			}
-			fmt.Printf("number of days in medium duration vol dates slice: %d\n", len(volDatesMed))
 			stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
 		}
 		if index+LONGDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= longDurationStartMilli {
@@ -238,7 +242,6 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 			for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
 				volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
 			}
-			fmt.Printf("number of days in long duration vol dates slice: %d\n\n", len(volDatesLong))
 			stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
 		}
 		stockPrices[ticker][date] = stockCandle
@@ -285,4 +288,32 @@ func calculateRiskRange(price, volatility, riskRangeDuration float64) (riskRange
 	riskRange["high"] = (1 + (volatility / TRADINGDAYSPERYEAR * riskRangeDuration)) * price
 	riskRange["low"] = (1 - (volatility / TRADINGDAYSPERYEAR * riskRangeDuration)) * price
 	return
+}
+
+func CalculateVelocityOfVolatility(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var prevDate = int64(0)
+		var int64DateArray []int64
+		for int64Date := range stockPrices[ticker] {
+			int64DateArray = append(int64DateArray, int64Date)
+		}
+
+		sort.Slice(int64DateArray, func(i, j int) bool {
+			return int64DateArray[i] < int64DateArray[j]
+		})
+
+		for _, int64Date := range int64DateArray {
+			singleStock := stockPrices[ticker][int64Date]
+			if prevDate != 0 {
+				fmt.Printf("previous Date: %d, current Date: %d\n", prevDate, int64Date)
+				singleStock.VelocityRealizedVol30 = stockPrices[ticker][int64Date].RealizedVolatility30 - stockPrices[ticker][prevDate].RealizedVolatility30
+				singleStock.VelocityRealizedVol60 = stockPrices[ticker][int64Date].RealizedVolatility60 - stockPrices[ticker][prevDate].RealizedVolatility60
+				singleStock.VelocityRealizedVol90 = stockPrices[ticker][int64Date].RealizedVolatility90 - stockPrices[ticker][prevDate].RealizedVolatility90
+			}
+			stockPrices[ticker][int64Date] = singleStock
+			prevDate = int64Date
+		}
+	}
+	stockPriceMap = stockPrices
+	return stockPriceMap
 }

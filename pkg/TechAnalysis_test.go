@@ -31,7 +31,7 @@ func TestRealizedVolatility(t *testing.T) {
 	}
 }
 
-func Test_calculateDailyReturn(t *testing.T) {
+func TestCalculateDailyReturn(t *testing.T) {
 	type args struct {
 		prices []float64
 	}
