@@ -125,6 +125,7 @@ func main() {
 		tickerData = pkg.StoreRealizedVols(tickerData, strings.ToUpper(ticker))
 		tickerData = pkg.CalculateRiskRanges(tickerData)
 		tickerData = pkg.CalculateVelocityOfVolatility(tickerData)
+		tickerData = pkg.CalculateRealizedVolatilityAccel(tickerData)
 	}
 
 	if err != nil {

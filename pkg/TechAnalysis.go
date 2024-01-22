@@ -53,6 +53,9 @@ type SingleStockCandle struct {
 	VelocityRealizedVol30 float64            `json:"30-day-realized-volatility-velocity"`
 	VelocityRealizedVol60 float64            `json:"60-day-realized-volatility-velocity"`
 	VelocityRealizedVol90 float64            `json:"90-day-realized-volatility-velocity"`
+	RealizedVolAccel30    float64            `json:"30-day-realized-volatility-accel"`
+	RealizedVolAccel60    float64            `json:"60-day-realized-volatility-accel"`
+	RealizedVolAccel90    float64            `json:"90-day-realized-volatility-accel"`
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -146,6 +149,9 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 			make(map[string]float64),
 			make(map[string]float64),
 			make(map[string]float64),
+			0.0,
+			0.0,
+			0.0,
 			0.0,
 			0.0,
 			0.0,
@@ -305,10 +311,37 @@ func CalculateVelocityOfVolatility(stockPrices map[string]map[int64]SingleStockC
 		for _, int64Date := range int64DateArray {
 			singleStock := stockPrices[ticker][int64Date]
 			if prevDate != 0 {
-				fmt.Printf("previous Date: %d, current Date: %d\n", prevDate, int64Date)
 				singleStock.VelocityRealizedVol30 = stockPrices[ticker][int64Date].RealizedVolatility30 - stockPrices[ticker][prevDate].RealizedVolatility30
 				singleStock.VelocityRealizedVol60 = stockPrices[ticker][int64Date].RealizedVolatility60 - stockPrices[ticker][prevDate].RealizedVolatility60
 				singleStock.VelocityRealizedVol90 = stockPrices[ticker][int64Date].RealizedVolatility90 - stockPrices[ticker][prevDate].RealizedVolatility90
+
+			}
+			stockPrices[ticker][int64Date] = singleStock
+			prevDate = int64Date
+		}
+	}
+	stockPriceMap = stockPrices
+	return stockPriceMap
+}
+
+func CalculateRealizedVolatilityAccel(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var prevDate = int64(0)
+		var int64DateArray []int64
+		for int64Date := range stockPrices[ticker] {
+			int64DateArray = append(int64DateArray, int64Date)
+		}
+
+		sort.Slice(int64DateArray, func(i, j int) bool {
+			return int64DateArray[i] < int64DateArray[j]
+		})
+
+		for _, int64Date := range int64DateArray {
+			singleStock := stockPrices[ticker][int64Date]
+			if prevDate != 0 {
+				singleStock.RealizedVolAccel30 = stockPrices[ticker][int64Date].VelocityRealizedVol30 - stockPrices[ticker][prevDate].VelocityRealizedVol30
+				singleStock.RealizedVolAccel60 = stockPrices[ticker][int64Date].VelocityRealizedVol60 - stockPrices[ticker][prevDate].VelocityRealizedVol60
+				singleStock.RealizedVolAccel90 = stockPrices[ticker][int64Date].VelocityRealizedVol90 - stockPrices[ticker][prevDate].VelocityRealizedVol90
 			}
 			stockPrices[ticker][int64Date] = singleStock
 			prevDate = int64Date
