@@ -23,7 +23,7 @@ jobs:
         go-version: '1.21.x'
 
     - name: Build
-      uses: psethwick/go-cross-build@1.2
+      uses: psethwick/go-cross-build@1
       with: 
         platforms: 'linux/amd64, darwin/amd64, windows/amd64'
         package: 'cmd'
