@@ -229,21 +229,21 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticke
 		medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
 		longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
 
-		if index+SHORTDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= shortDurationStartMilli {
+		if index+SHORTDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= shortDurationStartMilli {
 			var volDatesShort []int64
 			for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
 				volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
 			}
 			stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
 		}
-		if index+MEDIUMDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= medDurationStartMilli {
+		if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
 			var volDatesMed []int64
 			for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
 				volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
 			}
 			stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
 		}
-		if index+LONGDURATION < len(reverseDateKeys) && reverseDateKeys[index] >= longDurationStartMilli {
+		if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
 			var volDatesLong []int64
 			for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
 				volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
