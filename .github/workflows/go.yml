@@ -1,25 +1,32 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Go
+name: Generate Release Artifacts
 
 on:
   push:
     branches: [ "main", "dev" ]
+    tags: ['v*']
   pull_request:
     branches: [ "main" ]
+    tags: ['v*']
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-
+    - name: Check Out Repository
+      uses: actions/checkout@v3
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.21'
+        go-version: '1.21.x'
 
     - name: Build
-      run: go build -v cmd/stockClient.go
+      uses: thatisuday/go-cross-build@v1
+      with: 
+        platforms: 'linux/amd64, darwin/amd64, windows/amd64'
+        package: 'cmd'
+        name: 'stockclient'
+        compress: 'true'
+        dest: 'dist'
