@@ -49,9 +49,8 @@ jobs:
       # Upload Build Files
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.3.0
+        warn: "No file found at bin/*.tar.gz"
         with:
           path: bin/*.tar.gz
-          if-no-files-found:
-            warn: "No file found at bin/*.tar.gz"
           compression-level: 6
           overwrite: true
