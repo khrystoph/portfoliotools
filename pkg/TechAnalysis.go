@@ -85,6 +85,7 @@ func GetCurrAnnualReturn(currentPrice, costBasis float64, purchaseDate time.Time
  * Additionally, since a root of a number is an inverse power, we can flip the 365/n to be n/365 and use math.Pow.
  */
 func GetTargetAnnualReturn(costBasis, riskFreeRate float64, purchaseDate time.Time, isShort bool) (targetAnnualReturnPrice float64, err error) {
+	//TODO: Implement changes in the function to accept optional "endTimeMilli"
 	hoursOwned := truncateToDay(time.Now()).Sub(truncateToDay(purchaseDate)).Hours()
 	daysOwned := hoursOwned / DAY
 
