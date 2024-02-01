@@ -22,19 +22,52 @@ jobs:
         with:
           go-version: '1.21.x'
 
+      - name: Build Current Annualized Return
+        uses: psethwick/go-cross-build@1.2.0
+        with:
+          platforms: 'linux/amd64, darwin/amd64, windows/amd64'
+          package: 'cmd/currentReturn'
+          name: 'currentreturn'
+          compress: 'true'
+          dest: 'bin'
       - name: Build Stock Client
-        run: ls -al ./*;make release
+        uses: psethwick/go-cross-build@1.2.0
+        with:
+          platforms: 'linux/amd64, darwin/amd64, windows/amd64'
+          package: 'cmd/stockClient'
+          name: 'stockclient'
+          compress: 'true'
+          dest: 'bin'
+      - name: Build Target Annualized Returns
+        uses: psethwick/go-cross-build@1.2.0
+        with:
+          platforms: 'linux/amd64, darwin/amd64, windows/amd64'
+          package: 'cmd/targetReturn'
+          name: 'targetreturn'
+          compress: 'true'
+          dest: 'bin'
 
       # Upload Build Files
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.3.0
         with:
-          path: bin/*.tar.gz
-          warn: "No file found at bin/*.tar.gz"
+          path: bin/targetreturn.tar.gz
+          warn: "No file found at bin/targetreturn.tar.gz"
+          compression-level: 6
           overwrite: true
-      - name: Upload a Build Artifact 2
+      # Upload Build Files 2
+      - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.3.0
         with:
-          path: bin/*.zip
-          warn: "No file found at bin/*.zip"
+          path: bin/currentreturn.tar.gz
+          warn: "No file found at bin/currentreturn.tar.gz"
+          compression-level: 6
+          overwrite: true
+      # Upload Build Files
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v4.3.0
+        with:
+          path: bin/stockclient.tar.gz
+          warn: "No file found at bin/stockclient.tar.gz"
+          compression-level: 6
           overwrite: true
