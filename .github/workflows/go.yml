@@ -46,20 +46,12 @@ jobs:
           name: 'targetreturn'
           compress: 'true'
           dest: 'bin'
-
       # Upload Build Files
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.3.0
         with:
-          path: bin/*.zip
-          warn: "No file found at bin/*.zip"
-          compression-level: 6
-          overwrite: true
-      # Upload Build Files 2
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4.3.0
-        with:
           path: bin/*.tar.gz
-          warn: "No file found at bin/*.tar.gz"
+          if-no-files-found:
+            warn: "No file found at bin/*.tar.gz"
           compression-level: 6
           overwrite: true
