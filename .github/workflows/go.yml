@@ -23,7 +23,7 @@ jobs:
           go-version: '1.21.x'
 
       - name: Build Stock Client
-        run: make release
+        run: cd ../;make release
 
       # Upload Build Files
       - name: Upload a Build Artifact
