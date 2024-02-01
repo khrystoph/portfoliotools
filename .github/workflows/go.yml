@@ -34,7 +34,7 @@ jobs:
         uses: psethwick/go-cross-build@1.2.0
         with:
           platforms: 'linux/amd64, darwin/amd64, windows/amd64'
-          package: 'cmd/stockClient'
+          package: 'cmd/stockClient/'
           name: 'stockclient'
           compress: 'true'
           dest: 'bin'
