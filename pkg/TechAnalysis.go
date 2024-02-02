@@ -44,6 +44,9 @@ type SingleStockCandle struct {
 	AvgVolume30           float64            `json:"avg-volume-30"`
 	AvgVolume60           float64            `json:"avg-volume-60"`
 	AvgVolume90           float64            `json:"avg-volume-90"`
+	AvgVolumeRatio30      float64            `json:"avg-volume-ratio-30"`
+	AvgVolumeRatio60      float64            `json:"avg-volume-ratio-60"`
+	AvgVolumeRatio90      float64            `json:"avg-volume-ratio-90"`
 	ThirtyDaysPrices      map[string]float64 `json:"30-days-prices"`
 	SixtyDaysPrices       map[string]float64 `json:"60-days-prices"`
 	NinetyDaysPrices      map[string]float64 `json:"90-days-prices"`
@@ -140,6 +143,9 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 			time.Time(iter.Item().Timestamp),
 			iter.Item().Volume,
 			iter.Item().VWAP,
+			0.0,
+			0.0,
+			0.0,
 			0.0,
 			0.0,
 			0.0,
@@ -408,4 +414,25 @@ func CalculateAvgVolume(periodicVolumes []float64) (avgVolume float64) {
 		sum += volume
 	}
 	return sum / float64(len(periodicVolumes))
+}
+
+// CalculateAvgVolumeRatios takes the current day's short, medium, and long duration volume averages and compares them
+// to the current day's volume to get a ratio for calculating volume adjusted risk ranges
+func CalculateAvgVolumeRatios(stockPrices map[string]map[int64]SingleStockCandle) (stockData map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		for int64Date := range stockPrices[ticker] {
+			stockPriceData := stockPrices[ticker][int64Date]
+			if stockPrices[ticker][int64Date].AvgVolume30 != 0.0 {
+				stockPriceData.AvgVolumeRatio30 = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolume30
+			}
+			if stockPrices[ticker][int64Date].AvgVolume60 != 0.0 {
+				stockPriceData.AvgVolumeRatio60 = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolume60
+			}
+			if stockPrices[ticker][int64Date].AvgVolume90 != 0.0 {
+				stockPriceData.AvgVolumeRatio90 = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolume90
+			}
+			stockPrices[ticker][int64Date] = stockPriceData
+		}
+	}
+	return stockPrices
 }
