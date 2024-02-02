@@ -101,6 +101,7 @@ func main() {
 	tickerData = pkg.CalculateRiskRanges(tickerData)
 	tickerData = pkg.CalculateVelocityOfVolatility(tickerData)
 	tickerData = pkg.CalculateRealizedVolatilityAccel(tickerData)
+	tickerData = pkg.GetAvgVolume(tickerData)
 
 	if err != nil {
 		fmt.Errorf("error occurred: %w", err)
