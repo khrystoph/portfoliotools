@@ -62,6 +62,15 @@ type SingleStockCandle struct {
 	TradeRange            map[string]float64 `json:"trade-range"`
 	TrendRange            map[string]float64 `json:"trend-range"`
 	TailRange             map[string]float64 `json:"tail-range"`
+	TradeRangeAdj         map[string]float64 `json:"trade-range-vadj"`
+	TrendRangeAdj         map[string]float64 `json:"trend-range-vadj"`
+	TailRangeAdj          map[string]float64 `json:"tail-range-vadj"`
+	PTradeRange           map[string]float64 `json:"prob-adj-trade-range"`
+	PTrendRange           map[string]float64 `json:"prob-adj-trend-range"`
+	PTailRange            map[string]float64 `json:"prob-adj-tail-range"`
+	PTradeRangeAdj        map[string]float64 `json:"prob-trade-range-vadj"`
+	PTrendRangeAdj        map[string]float64 `json:"prob-trend-range-vadj"`
+	PTailRangeAdj         map[string]float64 `json:"prob-tail-range-vadj"`
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -165,6 +174,15 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 			0.0,
 			0.0,
 			0.0,
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
+			make(map[string]float64),
 			make(map[string]float64),
 			make(map[string]float64),
 			make(map[string]float64),
@@ -432,6 +450,56 @@ func CalculateAvgVolumeRatios(stockPrices map[string]map[int64]SingleStockCandle
 				stockPriceData.AvgVolumeRatio90 = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolume90
 			}
 			stockPrices[ticker][int64Date] = stockPriceData
+		}
+	}
+	return stockPrices
+}
+
+func CalculateVolumeAdjustedRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		for day := range stockPrices[ticker] {
+			dailyTicker := stockPrices[ticker][day]
+			if stockPrices[ticker][day].RealizedVolatility30 != 0.0 {
+				adjVolatility30 := stockPrices[ticker][day].RealizedVolatility30 / stockPrices[ticker][day].AvgVolumeRatio30
+				dailyTicker.TradeRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility30, SHORTDURATION)
+			}
+			if stockPrices[ticker][day].RealizedVolatility60 != 0.0 {
+				adjVolatility60 := stockPrices[ticker][day].RealizedVolatility60 / stockPrices[ticker][day].AvgVolumeRatio60
+				dailyTicker.TrendRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility60, MEDIUMDURATION)
+			}
+			if stockPrices[ticker][day].RealizedVolatility90 != 0.0 {
+				adjVolatility90 := stockPrices[ticker][day].RealizedVolatility90 / stockPrices[ticker][day].AvgVolumeRatio90
+				dailyTicker.TailRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility90, LONGDURATION)
+			}
+			stockPrices[ticker][day] = dailyTicker
+		}
+	}
+	return stockPrices
+}
+
+func CalculateProbabilityAdjRiskRange(riskRange map[string]float64, probabilityAdjustment float64) (probAdjRiskRange map[string]float64) {
+	tempRiskRange := map[string]float64{"high": 0.0, "low": 0.0}
+	tempRiskRange["high"] = riskRange["high"] - probabilityAdjustment*(riskRange["high"]-riskRange["low"])
+	tempRiskRange["low"] = riskRange["low"] + probabilityAdjustment*(riskRange["high"]-riskRange["low"])
+	return tempRiskRange
+}
+
+func GetProbAdjRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, probabilityAdjustment float64) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	fmt.Printf("probability Adjustment: %f", probabilityAdjustment)
+	if probabilityAdjustment == 0.0 {
+		probabilityAdjustment = .1
+	}
+	for ticker := range stockPrices {
+		for int64Date := range stockPrices[ticker] {
+			stockPrice := stockPrices[ticker][int64Date]
+			stockPrice.PTradeRange = CalculateProbabilityAdjRiskRange(stockPrice.TradeRange, probabilityAdjustment)
+			stockPrice.PTrendRange = CalculateProbabilityAdjRiskRange(stockPrice.TrendRange, probabilityAdjustment)
+			stockPrice.PTailRange = CalculateProbabilityAdjRiskRange(stockPrice.TailRange, probabilityAdjustment)
+			stockPrice.PTradeRangeAdj = CalculateProbabilityAdjRiskRange(stockPrice.TradeRangeAdj, probabilityAdjustment)
+			stockPrice.PTrendRangeAdj = CalculateProbabilityAdjRiskRange(stockPrice.TrendRangeAdj, probabilityAdjustment)
+			stockPrice.PTailRangeAdj = CalculateProbabilityAdjRiskRange(stockPrice.TailRangeAdj, probabilityAdjustment)
+
+			stockPrices[ticker][int64Date] = stockPrice
 		}
 	}
 	return stockPrices

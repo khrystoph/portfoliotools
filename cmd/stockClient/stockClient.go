@@ -36,7 +36,8 @@ func init() {
 }
 
 type StockDataConf struct {
-	Creds string
+	Creds           string  `json:"creds"`
+	RangeAdjustment float64 `json:"probable-range-adj"`
 }
 
 func main() {
@@ -96,13 +97,15 @@ func main() {
 		fmt.Errorf("unable to get stock prices")
 	}
 
-	// Call function to calculate each day's realized volatility given each duration available (30, 60, 90)
+	// Call functions to calculate each day's realized volatility, ranges, and adjusted ranges given each duration available (30, 60, 90)
 	tickerData = pkg.StoreRealizedVols(tickerData, strings.ToUpper(ticker))
-	tickerData = pkg.CalculateRiskRanges(tickerData)
-	tickerData = pkg.CalculateVelocityOfVolatility(tickerData)
-	tickerData = pkg.CalculateRealizedVolatilityAccel(tickerData)
 	tickerData = pkg.GetAvgVolume(tickerData)
 	tickerData = pkg.CalculateAvgVolumeRatios(tickerData)
+	tickerData = pkg.CalculateRiskRanges(tickerData)
+	tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData)
+	tickerData = pkg.CalculateVelocityOfVolatility(tickerData)
+	tickerData = pkg.CalculateRealizedVolatilityAccel(tickerData)
+	tickerData = pkg.GetProbAdjRiskRanges(tickerData, stockDataConfig.RangeAdjustment)
 
 	if err != nil {
 		fmt.Errorf("error occurred: %w", err)
