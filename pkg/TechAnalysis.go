@@ -10,11 +10,12 @@ import (
 	"log"
 	"math"
 	"sort"
+	"strings"
 	"time"
 )
 
 const DAY = 24
-const YEAR = 365
+const YEAR = 365.24
 const LONGDURATION = 90
 const MEDIUMDURATION = 60
 const SHORTDURATION = 30
@@ -75,6 +76,14 @@ type SingleStockCandle struct {
 
 func truncateToDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func annualization(ticker string) (daysInYear float64) {
+	if strings.HasPrefix(strings.ToUpper(ticker), "X:") {
+		return YEAR
+	} else {
+		return float64(TRADINGDAYSPERYEAR)
+	}
 }
 
 func GetCurrAnnualReturn(currentPrice, costBasis float64, purchaseDate time.Time, isShort bool) (currentAnnualizedReturn float64, err error) {
@@ -238,10 +247,11 @@ RealizedVolatility calculates the volatility of prices on varying timelines. It'
 that has impacted price and compare with Implied Volatility to evaluate the risk-reward ratio and if it is favorable to
 enter a trade.
 */
-func RealizedVolatility(prices []float64) (realizedVol float64) {
+func RealizedVolatility(prices []float64, ticker string) (realizedVol float64) {
 	returns := calculateDailyReturn(prices)
 	variance := calculateVariance(returns)
-	return math.Sqrt(variance * TRADINGDAYSPERYEAR)
+	daysInYear := annualization(ticker)
+	return math.Sqrt(variance * daysInYear)
 }
 
 func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticker string) (stockPriceData map[string]map[int64]SingleStockCandle) {
@@ -297,7 +307,7 @@ func calculateVolatility(volDatesArray []int64,
 		priceMap[dateOnly] = stockPrices[ticker][dateMilli].Close
 		prices = append(prices, stockPrices[ticker][dateMilli].Close)
 	}
-	realizedVolPeriod := RealizedVolatility(prices)
+	realizedVolPeriod := RealizedVolatility(prices, ticker)
 	return priceMap, realizedVolPeriod
 }
 
@@ -306,13 +316,13 @@ func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (st
 		for day := range stockPrices[ticker] {
 			dailyTicker := stockPrices[ticker][day]
 			if stockPrices[ticker][day].RealizedVolatility30 != 0.0 {
-				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility30, SHORTDURATION)
+				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility30, SHORTDURATION, ticker)
 			}
 			if stockPrices[ticker][day].RealizedVolatility60 != 0.0 {
-				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility60, MEDIUMDURATION)
+				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility60, MEDIUMDURATION, ticker)
 			}
 			if stockPrices[ticker][day].RealizedVolatility90 != 0.0 {
-				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility90, LONGDURATION)
+				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility90, LONGDURATION, ticker)
 			}
 			stockPrices[ticker][day] = dailyTicker
 		}
@@ -320,10 +330,11 @@ func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (st
 	return stockPrices
 }
 
-func calculateRiskRange(price, volatility, riskRangeDuration float64) (riskRange map[string]float64) {
+func calculateRiskRange(price, volatility, riskRangeDuration float64, ticker string) (riskRange map[string]float64) {
 	riskRange = make(map[string]float64)
-	riskRange["high"] = (1 + (volatility / TRADINGDAYSPERYEAR * riskRangeDuration)) * price
-	riskRange["low"] = (1 - (volatility / TRADINGDAYSPERYEAR * riskRangeDuration)) * price
+	daysInYear := annualization(ticker)
+	riskRange["high"] = (1 + (volatility / daysInYear * riskRangeDuration)) * price
+	riskRange["low"] = (1 - (volatility / daysInYear * riskRangeDuration)) * price
 	return
 }
 
@@ -461,15 +472,15 @@ func CalculateVolumeAdjustedRiskRanges(stockPrices map[string]map[int64]SingleSt
 			dailyTicker := stockPrices[ticker][day]
 			if stockPrices[ticker][day].RealizedVolatility30 != 0.0 {
 				adjVolatility30 := stockPrices[ticker][day].RealizedVolatility30 / stockPrices[ticker][day].AvgVolumeRatio30
-				dailyTicker.TradeRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility30, SHORTDURATION)
+				dailyTicker.TradeRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility30, SHORTDURATION, ticker)
 			}
 			if stockPrices[ticker][day].RealizedVolatility60 != 0.0 {
 				adjVolatility60 := stockPrices[ticker][day].RealizedVolatility60 / stockPrices[ticker][day].AvgVolumeRatio60
-				dailyTicker.TrendRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility60, MEDIUMDURATION)
+				dailyTicker.TrendRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility60, MEDIUMDURATION, ticker)
 			}
 			if stockPrices[ticker][day].RealizedVolatility90 != 0.0 {
 				adjVolatility90 := stockPrices[ticker][day].RealizedVolatility90 / stockPrices[ticker][day].AvgVolumeRatio90
-				dailyTicker.TailRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility90, LONGDURATION)
+				dailyTicker.TailRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility90, LONGDURATION, ticker)
 			}
 			stockPrices[ticker][day] = dailyTicker
 		}
@@ -485,7 +496,6 @@ func CalculateProbabilityAdjRiskRange(riskRange map[string]float64, probabilityA
 }
 
 func GetProbAdjRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, probabilityAdjustment float64) (stockPricesMap map[string]map[int64]SingleStockCandle) {
-	fmt.Printf("probability Adjustment: %f", probabilityAdjustment)
 	if probabilityAdjustment == 0.0 {
 		probabilityAdjustment = .1
 	}
