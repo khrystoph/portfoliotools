@@ -8,6 +8,7 @@ import (
 func TestRealizedVolatility(t *testing.T) {
 	type args struct {
 		prices []float64
+		ticker string
 	}
 	tests := []struct {
 		name            string
@@ -17,14 +18,14 @@ func TestRealizedVolatility(t *testing.T) {
 		// TODO: Add test cases.
 		{
 			name:            "Realized Volatility of 17.646% for AAPL in last 30 calendar days from 2023-12-06 to 2024-01-05",
-			args:            args{prices: []float64{181.18, 181.91, 184.25, 185.64, 192.53, 193.58, 193.15, 193.05, 193.60, 194.68, 194.83, 196.94, 195.89, 197.57, 198.11, 197.96, 194.71, 193.18, 195.71, 194.27, 192.32}},
+			args:            args{ticker: "abcd", prices: []float64{181.18, 181.91, 184.25, 185.64, 192.53, 193.58, 193.15, 193.05, 193.60, 194.68, 194.83, 196.94, 195.89, 197.57, 198.11, 197.96, 194.71, 193.18, 195.71, 194.27, 192.32}},
 			wantRealizedVol: 0.17646791566477701,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if gotRealizedVol := RealizedVolatility(tt.args.prices); gotRealizedVol != tt.wantRealizedVol {
+			if gotRealizedVol := RealizedVolatility(tt.args.prices, tt.args.ticker); gotRealizedVol != tt.wantRealizedVol {
 				t.Errorf("RealizedVolatility() = %v, want %v", gotRealizedVol, tt.wantRealizedVol)
 			}
 		})
