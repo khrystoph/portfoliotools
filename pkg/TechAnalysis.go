@@ -2,13 +2,17 @@ package pkg
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	alpaca "github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	polygon "github.com/polygon-io/client-go/rest"
 	"github.com/polygon-io/client-go/rest/models"
 	gonum "gonum.org/v1/gonum/stat"
+	"io"
 	"log"
 	"math"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +24,15 @@ const LONGDURATION = 90
 const MEDIUMDURATION = 60
 const SHORTDURATION = 30
 const TRADINGDAYSPERYEAR = 252
+const ALPACA_PAPER_API = "https://paper-api.alpaca.markets"
+const ALPACA_LIVE_API = "https://api.alpaca.markets"
+
+type StockDataConf struct {
+	PolygonAPIToken string  `json:"polygon-api-key"`
+	AlpacaAPIKey    string  `json:"alpaca-api-key"`
+	AlpacaSecretKey string  `json:"alpaca-secret-key"`
+	RangeAdjustment float64 `json:"probable-range-adj"`
+}
 
 // OHLC is a struct that contains the Open, High, Low, and Close values from a range of times for a specific ticker
 type OHLC struct {
@@ -30,6 +43,17 @@ type OHLC struct {
 	Timestamp        []int64   `json:"t"`
 	TransactionCount []int64   `json:"n"`
 	Volume           []int64   `json:"v"`
+}
+
+type HistoricalBar struct {
+	Close            float64 `json:"c"`
+	High             float64 `json:"h"`
+	Low              float64 `json:"l"`
+	TransactionCount int64   `json:"n"`
+	Open             float64 `json:"o"`
+	Timestamp        string  `json:"t"`
+	Volume           int64   `json:"v"`
+	WeightedVolume   float64 `json:"vw"`
 }
 
 type SingleStockCandle struct {
@@ -128,6 +152,81 @@ func GetTargetAnnualReturn(costBasis, riskFreeRate float64, purchaseDate time.Ti
 	return targetAnnualReturnPrice, nil
 }
 
+func createAlpacaClient(APIKey, APISecretKey string, live bool) (client *alpaca.Client) {
+	if live {
+		return alpaca.NewClient(alpaca.ClientOpts{
+			APIKey:    APIKey,
+			APISecret: APISecretKey,
+			BaseURL:   ALPACA_LIVE_API,
+		})
+	} else {
+		return alpaca.NewClient(alpaca.ClientOpts{
+			APIKey:    APIKey,
+			APISecret: APISecretKey,
+			BaseURL:   ALPACA_PAPER_API,
+		})
+	}
+}
+
+func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, startTimeMilli,
+	endTimeMilli time.Time) (stockData map[string]map[int64]SingleStockCandle, err error) {
+	var result map[string]any
+	if endTimeMilli.Format(time.DateOnly) == time.Now().Format(time.DateOnly) {
+		endTimeMilli = endTimeMilli.AddDate(0, 0, -1)
+	}
+	var startTime = startTimeMilli.Format(time.DateOnly)
+	var endTime = endTimeMilli.Format(time.DateOnly)
+	stockData = map[string]map[int64]SingleStockCandle{}
+	url := "https://data.alpaca.markets/v2/stocks/bars?symbols=" + ticker + "&timeframe=" + resolution +
+		"&start=" + startTime + "&end=" + endTime + "&limit=1000&adjustment=split&feed=sip&sort=asc"
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("accept", "application/json")
+	req.Header.Add("APCA-API-KEY-ID", clientConfs.AlpacaAPIKey)
+	req.Header.Add("APCA-API-SECRET-KEY", clientConfs.AlpacaSecretKey)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Errorf("error retrieving historical stock bars: %e", err)
+	}
+
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		fmt.Errorf("error unmarshalling stock data: %e", err)
+	}
+
+	stockPrices := result["bars"].(map[string]any)
+	for stockSymbol := range stockPrices {
+		hb := stockPrices[stockSymbol].([]any)
+		if _, ok := stockData[stockSymbol]; !ok {
+			stockData[stockSymbol] = map[int64]SingleStockCandle{}
+		}
+		for _, val := range hb {
+			bar := val.(map[string]any)
+			timeStamp := bar["t"].(string)
+			ts, tsErr := time.Parse(time.RFC3339, timeStamp)
+			if tsErr != nil {
+				fmt.Errorf("error converting timestamp to time: %e", tsErr)
+			}
+			tsUnixMilli := ts.UnixMilli()
+			stockData[stockSymbol][tsUnixMilli] = SingleStockCandle{
+				Ticker:         stockSymbol,
+				Close:          bar["c"].(float64),
+				High:           bar["h"].(float64),
+				Low:            bar["l"].(float64),
+				Open:           bar["o"].(float64),
+				Transactions:   int64(bar["n"].(float64)),
+				Timestamp:      ts,
+				Volume:         bar["v"].(float64),
+				WeightedVolume: bar["vw"].(float64),
+			}
+		}
+	}
+	return stockData, nil
+}
+
 // GetStockPrices grabs a set of prices for a ticker over a duration and returns the set
 func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTimeMilli time.Time) (stockPrices map[string]map[int64]SingleStockCandle, err error) {
 	polygonClient := polygon.New(apiToken)
@@ -152,49 +251,15 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 	for iter.Next() {
 		ts := time.Time(iter.Item().Timestamp).UnixMilli()
 		stockPrices[ticker][ts] = SingleStockCandle{
-			ticker,
-			iter.Item().Close,
-			iter.Item().High,
-			iter.Item().Low,
-			iter.Item().Open,
-			iter.Item().Transactions,
-			time.Time(iter.Item().Timestamp),
-			iter.Item().Volume,
-			iter.Item().VWAP,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			// initialize containers for last n days of prices for various durations
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			// values filled below here are calculated later in the process and filled with zeros for now
-			// RealizedVolatility values over various durations
-			0.0,
-			0.0,
-			0.0,
-			// Trade, Trend, and Tail range values
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
+			Ticker:         ticker,
+			Close:          iter.Item().Close,
+			High:           iter.Item().High,
+			Low:            iter.Item().Low,
+			Open:           iter.Item().Open,
+			Transactions:   iter.Item().Transactions,
+			Timestamp:      time.Time(iter.Item().Timestamp),
+			Volume:         iter.Item().Volume,
+			WeightedVolume: iter.Item().VWAP,
 		}
 	}
 	if iter.Err() != nil {

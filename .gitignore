@@ -22,3 +22,6 @@ go.work
 
 # ignore the intellij folder
 .idea
+
+# ignore the config file because it contains API credentials that we don't want to leak
+.stockclientconfig.json
