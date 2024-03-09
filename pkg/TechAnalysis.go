@@ -177,6 +177,14 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 	var startTime = startTimeMilli.Format(time.DateOnly)
 	var endTime = endTimeMilli.Format(time.DateOnly)
 	stockData = map[string]map[int64]SingleStockCandle{}
+	switch resolution {
+	case "1T", "1H", "1D", "1W", "1M":
+		break
+	default:
+		fmt.Errorf("invalid resolution format")
+		err = errors.New("invalid time resolution format error")
+		return nil, err
+	}
 	url := "https://data.alpaca.markets/v2/stocks/bars?symbols=" + ticker + "&timeframe=" + resolution +
 		"&start=" + startTime + "&end=" + endTime + "&limit=1000&adjustment=split&feed=sip&sort=asc"
 	req, _ := http.NewRequest("GET", url, nil)

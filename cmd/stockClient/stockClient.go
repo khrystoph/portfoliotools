@@ -75,9 +75,30 @@ func main() {
 	}
 	// retrieve stock ticker's prices and store in a map
 
-	tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.PolygonAPIToken, resolution, startTimeMilli, endTimeMilli)
-	if err != nil {
-		fmt.Errorf("unable to get stock prices")
+	if stockDataConfig.AlpacaSecretKey != "" {
+		switch resolution {
+		case "minute", "Minute", "MINUTE", "M", "m":
+			resolution = "1T"
+		case "hour", "Hour", "HOUR", "H", "h":
+			resolution = "1H"
+		case "Week", "week", "WEEK", "W", "w":
+			resolution = "1W"
+		case "Month", "month", "MONTH", "Mo", "mo":
+			resolution = "1M"
+		case "DAY", "day", "Day", "D", "d":
+			fallthrough
+		default:
+			resolution = "1D"
+		}
+		tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, ticker, resolution, startTimeMilli, endTimeMilli)
+		if err != nil {
+			fmt.Errorf("unable to retrieve stock data: %e", err)
+		}
+	} else {
+		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.PolygonAPIToken, resolution, startTimeMilli, endTimeMilli)
+		if err != nil {
+			fmt.Errorf("unable to get stock prices")
+		}
 	}
 
 	// Call functions to calculate each day's realized volatility, ranges, and adjusted ranges given each duration available (30, 60, 90)
