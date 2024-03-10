@@ -168,9 +168,14 @@ func createAlpacaClient(APIKey, APISecretKey string, live bool) (client *alpaca.
 	}
 }
 
+// GetStockPricesAlpaca retrieves stock prices using Alpaca's stock API. It does NOT gather crypto data using the stock
+// api, which is counter to polygon's behavior.
 func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, startTimeMilli,
 	endTimeMilli time.Time) (stockData map[string]map[int64]SingleStockCandle, err error) {
-	var result map[string]any
+	var (
+		result map[string]any
+		url    string
+	)
 	if endTimeMilli.Format(time.DateOnly) == time.Now().Format(time.DateOnly) {
 		endTimeMilli = endTimeMilli.AddDate(0, 0, -1)
 	}
@@ -185,8 +190,17 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 		err = errors.New("invalid time resolution format error")
 		return nil, err
 	}
-	url := "https://data.alpaca.markets/v2/stocks/bars?symbols=" + ticker + "&timeframe=" + resolution +
-		"&start=" + startTime + "&end=" + endTime + "&limit=1000&adjustment=split&feed=sip&sort=asc"
+	//TODO: implement logic to ascertain if the lookup is for crypto or stocks.
+	if strings.HasPrefix(ticker, "X:") {
+		ticker = strings.Split(ticker, ":")[1]
+		cryptoTicker := strings.Replace(ticker, "/", "%2F", 1)
+		fmt.Printf("Adjusted ticker is: %s\n", cryptoTicker)
+		url = "https://data.alpaca.markets/v1beta3/crypto/us/bars?symbols=" + cryptoTicker + "&timeframe=" +
+			resolution + "&start=" + startTime + "&end=" + endTime + "&limit=1000&sort=asc"
+	} else {
+		url = "https://data.alpaca.markets/v2/stocks/bars?symbols=" + ticker + "&timeframe=" + resolution +
+			"&start=" + startTime + "&end=" + endTime + "&limit=1000&adjustment=split&feed=sip&sort=asc"
+	}
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("APCA-API-KEY-ID", clientConfs.AlpacaAPIKey)
