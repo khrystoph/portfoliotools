@@ -50,6 +50,7 @@ jobs:
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.3.0
         with:
+          name: portfoliotools
           warn: "No file found at bin/*.tar.gz"
           path: bin/*.tar.gz
           compression-level: 6
