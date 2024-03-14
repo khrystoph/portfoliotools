@@ -638,7 +638,10 @@ func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stock
 						shortVolHigh = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
 					}
 					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 < shortVolLow &&
-						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 || shortVolLow == 0 {
+						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 {
+						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					} else if shortVolLow == 0.0 &&
+						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 {
 						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
 					}
 				}
@@ -661,7 +664,10 @@ func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stock
 						medVolHigh = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
 					}
 					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 < medVolLow &&
-						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 || medVolLow == 0 {
+						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 {
+						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					} else if medVolLow == 0.0 &&
+						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 {
 						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
 					}
 				}
@@ -684,7 +690,10 @@ func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stock
 						longVolHigh = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
 					}
 					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 < longVolLow &&
-						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 || longVolLow == 0.0 {
+						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 {
+						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					} else if longVolLow == 0.0 &&
+						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 {
 						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
 					}
 				}
