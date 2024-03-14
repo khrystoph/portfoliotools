@@ -75,6 +75,15 @@ type SingleStockCandle struct {
 	ThirtyDaysPrices      map[string]float64 `json:"30-days-prices"`
 	SixtyDaysPrices       map[string]float64 `json:"60-days-prices"`
 	NinetyDaysPrices      map[string]float64 `json:"90-days-prices"`
+	RVolHigh30            float64            `json:"30-day-rvol-high"`
+	RVolLow30             float64            `json:"30-day-rvol-low"`
+	RVolHigh60            float64            `json:"60-day-rvol-high"`
+	RVolLow60             float64            `json:"60-day-rvol-low"`
+	RVolHigh90            float64            `json:"90-day-rvol-high"`
+	RVolLow90             float64            `json:"90-day-rvol-low"`
+	RVolPercent30         float64            `json:"30-day-rvol-range-percent"`
+	RVolPercent60         float64            `json:"60-day-rvol-range-percent"`
+	RVolPercent90         float64            `json:"90-day-rvol-range-percent"`
 	RealizedVolatility30  float64            `json:"30-day-realized-volatility"`
 	RealizedVolatility60  float64            `json:"60-day-realized-volatility"`
 	RealizedVolatility90  float64            `json:"90-day-realized-volatility"`
@@ -600,4 +609,104 @@ func GetProbAdjRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, pr
 		}
 	}
 	return stockPrices
+}
+
+func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		reverseDateKeys := dateKeys
+		// Sort our date keys in reverse order such that the most recent date is first and the oldest date is last
+		sort.Slice(reverseDateKeys, func(i, j int) bool {
+			return reverseDateKeys[i] > reverseDateKeys[j]
+		})
+		for index, date := range reverseDateKeys {
+			stockCandle := stockPrices[ticker][date]
+			shortDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*SHORTDURATION).UnixMilli()
+			medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
+			longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
+
+			if index+SHORTDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= shortDurationStartMilli {
+				var (
+					shortVolHigh = 0.0
+					shortVolLow  = 0.0
+				)
+				for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
+					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > shortVolHigh {
+						shortVolHigh = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					}
+					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 < shortVolLow &&
+						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 || shortVolLow == 0 {
+						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					}
+				}
+				stockCandle.RVolHigh30 = shortVolHigh
+				stockCandle.RVolLow30 = shortVolLow
+				shortRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh30, stockCandle.RVolLow30,
+					stockCandle.RealizedVolatility30)
+				if err != nil {
+					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
+				}
+				stockCandle.RVolPercent30 = shortRVolPercent
+			}
+			if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
+				var (
+					medVolHigh = 0.0
+					medVolLow  = 0.0
+				)
+				for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
+					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > medVolHigh {
+						medVolHigh = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					}
+					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 < medVolLow &&
+						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 || medVolLow == 0 {
+						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					}
+				}
+				stockCandle.RVolHigh60 = medVolHigh
+				stockCandle.RVolLow60 = medVolLow
+				medRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh60, stockCandle.RVolLow60,
+					stockCandle.RealizedVolatility60)
+				if err != nil {
+					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
+				}
+				stockCandle.RVolPercent60 = medRVolPercent
+			}
+			if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
+				var (
+					longVolHigh = 0.0
+					longVolLow  = 0.0
+				)
+				for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
+					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > longVolHigh {
+						longVolHigh = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					}
+					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 < longVolLow &&
+						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 || longVolLow == 0.0 {
+						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					}
+				}
+				stockCandle.RVolHigh90 = longVolHigh
+				stockCandle.RVolLow90 = longVolLow
+				longRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh90, stockCandle.RVolLow90,
+					stockCandle.RealizedVolatility90)
+				if err != nil {
+					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
+				}
+				stockCandle.RVolPercent90 = longRVolPercent
+			}
+			stockPrices[ticker][date] = stockCandle
+		}
+	}
+	return stockPrices
+}
+
+func calculateRVolPercentRange(rVolHigh, rVolLow, rVol float64) (rvolPercent float64, err error) {
+	if rVolHigh-rVolLow == 0.0 {
+		err = errors.New("divide by zero error")
+		return 0.0, err
+	}
+	return (rVol - rVolLow) / (rVolHigh - rVolLow), nil
 }

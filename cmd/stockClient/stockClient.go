@@ -107,6 +107,7 @@ func main() {
 
 	// Call functions to calculate each day's realized volatility, ranges, and adjusted ranges given each duration available (30, 60, 90)
 	tickerData = pkg.StoreRealizedVols(tickerData, strings.ToUpper(ticker))
+	tickerData = pkg.GetRelHighLowVol(tickerData)
 	tickerData = pkg.GetAvgVolume(tickerData)
 	tickerData = pkg.CalculateAvgVolumeRatios(tickerData)
 	tickerData = pkg.CalculateRiskRanges(tickerData)
