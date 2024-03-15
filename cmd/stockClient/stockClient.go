@@ -13,21 +13,38 @@ import (
 
 var (
 	ticker, startTime, endTime, resolution, tickerConfig string
+	debug                                                bool
 )
 
 func init() {
 	flag.StringVar(&tickerConfig, "config", ".stockclientconfig.json",
 		"path to the json config file containing credentials for ticker data. Default is: "+
 			".stockclientconfig.json")
+	flag.StringVar(&tickerConfig, "c", ".stockclientconfig.json",
+		"path to the json config file containing credentials for ticker data. Default is: "+
+			".stockclientconfig.json")
 	flag.StringVar(&ticker, "ticker", "AAPL", "Enter stock ticker to look up price info for")
+	flag.StringVar(&ticker, "t", "AAPL", "Enter stock ticker to look up price info for")
 	flag.StringVar(&startTime, "startTime", "30 days ago", "Enter a time to start gathering data "+
 		"for the ticker. Time must be formatted as YYYY-MM-DDTHH:MM:SSZ. Time will always assume UTC.")
+	flag.StringVar(&startTime, "s", "30 days ago", "Enter a time to start gathering data "+
+		"for the ticker. Time must be formatted as YYYY-MM-DDTHH:MM:SSZ. Time will always assume UTC.")
 	flag.StringVar(&endTime, "endTime", "Today",
+		"Enter a time to end gathering data for the ticker. Time must be formatted as YYYY-MM-DDTHH:MM:SSZ."+
+			" Time will always assume UTC.")
+	flag.StringVar(&endTime, "e", "Today",
 		"Enter a time to end gathering data for the ticker. Time must be formatted as YYYY-MM-DDTHH:MM:SSZ."+
 			" Time will always assume UTC.")
 	flag.StringVar(&resolution, "resolution", "day", "Input the resolution to pull data. "+
 		"Supported values: second, minute, hour, day, week, month, quarter, year."+
 		" The numeric time values represent minutes. Default resolution: day.")
+	flag.StringVar(&resolution, "r", "day", "Input the resolution to pull data. "+
+		"Supported values: second, minute, hour, day, week, month, quarter, year."+
+		" The numeric time values represent minutes. Default resolution: day.")
+	flag.BoolVar(&debug, "debug", false, "Toggles debug output for purposes"+
+		" of showing more information. Default value: false.")
+	flag.BoolVar(&debug, "d", false, "Toggles debug output for purposes"+
+		" of showing more information. Default value: false.")
 }
 
 func main() {
@@ -45,33 +62,34 @@ func main() {
 	// Section parses the config file location, opens it, decodes the JSON and loads the API creds
 	userDir, err = os.UserHomeDir()
 	if err != nil {
-		fmt.Errorf("error reading user's homedir: %w", err)
+		_ = fmt.Errorf("error reading user's homedir: %w", err)
 	}
 	tickerConfig = strings.Replace(tickerConfig, "~", userDir, 1)
 	if _, err = os.Stat(tickerConfig); errors.Is(err, os.ErrNotExist) {
-		fmt.Errorf("error: config file %s does not exist. exiting", tickerConfig)
+		_ = fmt.Errorf("error: config file %s does not exist. exiting", tickerConfig)
 	}
 	configFile, err := os.Open(tickerConfig)
 	if err != nil {
-		fmt.Errorf("error opening the config file. %w", err)
+		_ = fmt.Errorf("error opening the config file. %w", err)
 	}
 	defer configFile.Close()
 	configDecoder := json.NewDecoder(configFile)
 	stockDataConfig := pkg.StockDataConf{}
 	err = configDecoder.Decode(&stockDataConfig)
 	if err != nil {
-		fmt.Errorf("error decoding the json config file. exiting. error msg: %w", err)
+		_ = fmt.Errorf("error decoding the json config file. exiting. error msg: %w", err)
+		os.Exit(1)
 	}
 
 	startTimeMilli, err := time.Parse(time.RFC3339, startTime)
 	if err != nil {
-		fmt.Printf("Unable to convert startTime to milliseconds.\nstartTime: %s\n", startTime)
-		return
+		_ = fmt.Errorf("Unable to convert startTime to milliseconds.\nstartTime: %s\n", startTime)
+		os.Exit(1)
 	}
 	endTimeMilli, err := time.Parse(time.RFC3339, endTime)
 	if err != nil {
-		fmt.Printf("Unable to convert endTime to milliseconds.\n")
-		return
+		_ = fmt.Errorf("Unable to convert endTime to milliseconds.\n")
+		os.Exit(1)
 	}
 	// retrieve stock ticker's prices and store in a map
 
@@ -119,9 +137,5 @@ func main() {
 	if err != nil {
 		fmt.Errorf("error occurred: %w", err)
 	}
-	jsonTickerData, err := json.MarshalIndent(tickerData[strings.ToUpper(ticker)], "", "  ")
-	if err != nil {
-		fmt.Errorf("error marshalling data into JSON string")
-	}
-	fmt.Printf("%v\n", string(jsonTickerData))
+	pkg.PrintData(tickerData, debug)
 }

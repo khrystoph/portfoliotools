@@ -13,6 +13,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -105,6 +106,117 @@ type SingleStockCandle struct {
 	PTradeRangeAdj        map[string]float64 `json:"prob-trade-range-vadj"`
 	PTrendRangeAdj        map[string]float64 `json:"prob-trend-range-vadj"`
 	PTailRangeAdj         map[string]float64 `json:"prob-tail-range-vadj"`
+}
+
+type condensedStockCandle struct {
+	Ticker              string             `json:"ticker"`
+	Close               float64            `json:"close"`
+	Timestamp           time.Time          `json:"timestamp"`
+	AvgVolumeShort      float64            `json:"short-avg-volume"`
+	AvgVolumeRatioShort float64            `json:"short-avg-volume-ratio"`
+	AvgVolumeMed        float64            `json:"med-avg-volume"`
+	AvgVolumeRatioMed   float64            `json:"med-avg-volume-ratio"`
+	AvgVolumeLong       float64            `json:"long-avg-volume"`
+	AvgVolumeRatioLong  float64            `json:"long-avg-volume-ratio"`
+	RVolShort           float64            `json:"rvol-short"`
+	RVolShortVel        float64            `json:"rvol-short-vel"`
+	RVolShortAccel      float64            `json:"rvol-short-accel"`
+	RVolPercentShort    float64            `json:"short-day-rvol-range-percent"`
+	RVolHighShort       float64            `json:"short-day-rvol-high"`
+	RVolLowShort        float64            `json:"short-day-rvol-low"`
+	TradeRangeAdj       map[string]float64 `json:"trade-range-vadj"`
+	PtradeRangeAdj      map[string]float64 `json:"prob-trade-range-vadj"`
+	RVolMed             float64            `json:"rvol-med"`
+	RVolMedVel          float64            `json:"rvol-med-vel"`
+	RVolMedAccel        float64            `json:"rvol-med-accel"`
+	RVolPercentMed      float64            `json:"med-day-rvol-range-percent"`
+	RVolHighMed         float64            `json:"med-day-rvol-high"`
+	RVolLowMed          float64            `json:"med-day-rvol-low"`
+	TrendRangeAdj       map[string]float64 `json:"trend-range-vadj"`
+	PTrendRangeAdj      map[string]float64 `json:"prob-trend-range-vadj"`
+	RVolLong            float64            `json:"rvol-long"`
+	RVolLongVel         float64            `json:"rvol-long-vel"`
+	RVolLongAccel       float64            `json:"rvol-long-accel"`
+	RVolPercentLong     float64            `json:"long-day-rvol-range-percent"`
+	RVolHighLong        float64            `json:"long-day-rvol-high"`
+	RVolLowLong         float64            `json:"long-day-rvol-low"`
+	TailRangeAdj        map[string]float64 `json:"tail-range-vadj"`
+	PTailRangeAdj       map[string]float64 `json:"prob-tail-range-vadj"`
+}
+
+func PrintData(stockPrices map[string]map[int64]SingleStockCandle, debug bool) {
+	var jsonTickerData []byte
+	var err error
+
+	// Prepare the condensed data
+	condensedPrices := PrepareToPrintData(stockPrices)
+
+	// Print the data
+	if debug {
+		jsonTickerData, err = json.MarshalIndent(stockPrices, "", "  ")
+	} else {
+		jsonTickerData, err = json.MarshalIndent(condensedPrices, "", "  ")
+	}
+	if err != nil {
+		_ = fmt.Errorf("error marshalling data into JSON string")
+		os.Exit(1)
+	}
+	fmt.Printf("%v\n", string(jsonTickerData))
+}
+
+func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (condensedPrices map[string]map[int64]condensedStockCandle) {
+	condensedPrices = map[string]map[int64]condensedStockCandle{}
+
+	// prepare the condensed data
+	for ticker := range stockPrices {
+		if _, ok := condensedPrices[ticker]; !ok {
+			condensedPrices[ticker] = make(map[int64]condensedStockCandle)
+		}
+		for dateInt64 := range stockPrices[ticker] {
+			condensedPrices[ticker][dateInt64] = condensedStockCandle{
+				// Base data from pulling stock candles from data provider
+				Ticker:    stockPrices[ticker][dateInt64].Ticker,
+				Close:     stockPrices[ticker][dateInt64].Close,
+				Timestamp: stockPrices[ticker][dateInt64].Timestamp,
+				// Volume Data here
+				AvgVolumeShort:      stockPrices[ticker][dateInt64].AvgVolume30,
+				AvgVolumeRatioShort: stockPrices[ticker][dateInt64].AvgVolumeRatio30,
+				AvgVolumeMed:        stockPrices[ticker][dateInt64].AvgVolume60,
+				AvgVolumeRatioMed:   stockPrices[ticker][dateInt64].AvgVolumeRatio60,
+				AvgVolumeLong:       stockPrices[ticker][dateInt64].AvgVolume90,
+				AvgVolumeRatioLong:  stockPrices[ticker][dateInt64].AvgVolumeRatio90,
+				// RVol Patterns are 6 values between short, medium, and long
+				// short duration
+				RVolShort:        stockPrices[ticker][dateInt64].RealizedVolatility30,
+				RVolShortVel:     stockPrices[ticker][dateInt64].VelocityRealizedVol30,
+				RVolShortAccel:   stockPrices[ticker][dateInt64].RealizedVolAccel30,
+				RVolPercentShort: stockPrices[ticker][dateInt64].RVolPercent30,
+				RVolHighShort:    stockPrices[ticker][dateInt64].RVolHigh30,
+				RVolLowShort:     stockPrices[ticker][dateInt64].RVolLow30,
+				TradeRangeAdj:    stockPrices[ticker][dateInt64].TradeRangeAdj,
+				PtradeRangeAdj:   stockPrices[ticker][dateInt64].PTradeRangeAdj,
+				// medium duration
+				RVolMed:        stockPrices[ticker][dateInt64].RealizedVolatility60,
+				RVolMedVel:     stockPrices[ticker][dateInt64].VelocityRealizedVol60,
+				RVolMedAccel:   stockPrices[ticker][dateInt64].RealizedVolAccel60,
+				RVolPercentMed: stockPrices[ticker][dateInt64].RVolPercent60,
+				RVolHighMed:    stockPrices[ticker][dateInt64].RVolHigh60,
+				RVolLowMed:     stockPrices[ticker][dateInt64].RVolLow60,
+				TrendRangeAdj:  stockPrices[ticker][dateInt64].TrendRangeAdj,
+				PTrendRangeAdj: stockPrices[ticker][dateInt64].PTrendRangeAdj,
+				// long duration
+				RVolLong:        stockPrices[ticker][dateInt64].RealizedVolatility90,
+				RVolLongVel:     stockPrices[ticker][dateInt64].VelocityRealizedVol90,
+				RVolLongAccel:   stockPrices[ticker][dateInt64].RealizedVolAccel90,
+				RVolPercentLong: stockPrices[ticker][dateInt64].RVolPercent90,
+				RVolHighLong:    stockPrices[ticker][dateInt64].RVolHigh90,
+				RVolLowLong:     stockPrices[ticker][dateInt64].RVolLow90,
+				TailRangeAdj:    stockPrices[ticker][dateInt64].TailRangeAdj,
+				PTailRangeAdj:   stockPrices[ticker][dateInt64].PTailRangeAdj,
+			}
+		}
+	}
+	return condensedPrices
 }
 
 func truncateToDay(t time.Time) time.Time {
