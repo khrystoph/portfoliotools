@@ -111,13 +111,10 @@ type SingleStockCandle struct {
 type condensedStockCandle struct {
 	Ticker              string             `json:"ticker"`
 	Close               float64            `json:"close"`
+	Volume              float64            `json:"volume"`
 	Timestamp           time.Time          `json:"timestamp"`
 	AvgVolumeShort      float64            `json:"short-avg-volume"`
 	AvgVolumeRatioShort float64            `json:"short-avg-volume-ratio"`
-	AvgVolumeMed        float64            `json:"med-avg-volume"`
-	AvgVolumeRatioMed   float64            `json:"med-avg-volume-ratio"`
-	AvgVolumeLong       float64            `json:"long-avg-volume"`
-	AvgVolumeRatioLong  float64            `json:"long-avg-volume-ratio"`
 	RVolShort           float64            `json:"rvol-short"`
 	RVolShortVel        float64            `json:"rvol-short-vel"`
 	RVolShortAccel      float64            `json:"rvol-short-accel"`
@@ -126,6 +123,8 @@ type condensedStockCandle struct {
 	RVolLowShort        float64            `json:"short-day-rvol-low"`
 	TradeRangeAdj       map[string]float64 `json:"trade-range-vadj"`
 	PtradeRangeAdj      map[string]float64 `json:"prob-trade-range-vadj"`
+	AvgVolumeMed        float64            `json:"med-avg-volume"`
+	AvgVolumeRatioMed   float64            `json:"med-avg-volume-ratio"`
 	RVolMed             float64            `json:"rvol-med"`
 	RVolMedVel          float64            `json:"rvol-med-vel"`
 	RVolMedAccel        float64            `json:"rvol-med-accel"`
@@ -134,6 +133,8 @@ type condensedStockCandle struct {
 	RVolLowMed          float64            `json:"med-day-rvol-low"`
 	TrendRangeAdj       map[string]float64 `json:"trend-range-vadj"`
 	PTrendRangeAdj      map[string]float64 `json:"prob-trend-range-vadj"`
+	AvgVolumeLong       float64            `json:"long-avg-volume"`
+	AvgVolumeRatioLong  float64            `json:"long-avg-volume-ratio"`
 	RVolLong            float64            `json:"rvol-long"`
 	RVolLongVel         float64            `json:"rvol-long-vel"`
 	RVolLongAccel       float64            `json:"rvol-long-accel"`
@@ -177,42 +178,41 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 				// Base data from pulling stock candles from data provider
 				Ticker:    stockPrices[ticker][dateInt64].Ticker,
 				Close:     stockPrices[ticker][dateInt64].Close,
+				Volume:    stockPrices[ticker][dateInt64].Volume,
 				Timestamp: stockPrices[ticker][dateInt64].Timestamp,
-				// Volume Data here
+				// short duration
 				AvgVolumeShort:      stockPrices[ticker][dateInt64].AvgVolume30,
 				AvgVolumeRatioShort: stockPrices[ticker][dateInt64].AvgVolumeRatio30,
-				AvgVolumeMed:        stockPrices[ticker][dateInt64].AvgVolume60,
-				AvgVolumeRatioMed:   stockPrices[ticker][dateInt64].AvgVolumeRatio60,
-				AvgVolumeLong:       stockPrices[ticker][dateInt64].AvgVolume90,
-				AvgVolumeRatioLong:  stockPrices[ticker][dateInt64].AvgVolumeRatio90,
-				// RVol Patterns are 6 values between short, medium, and long
-				// short duration
-				RVolShort:        stockPrices[ticker][dateInt64].RealizedVolatility30,
-				RVolShortVel:     stockPrices[ticker][dateInt64].VelocityRealizedVol30,
-				RVolShortAccel:   stockPrices[ticker][dateInt64].RealizedVolAccel30,
-				RVolPercentShort: stockPrices[ticker][dateInt64].RVolPercent30,
-				RVolHighShort:    stockPrices[ticker][dateInt64].RVolHigh30,
-				RVolLowShort:     stockPrices[ticker][dateInt64].RVolLow30,
-				TradeRangeAdj:    stockPrices[ticker][dateInt64].TradeRangeAdj,
-				PtradeRangeAdj:   stockPrices[ticker][dateInt64].PTradeRangeAdj,
+				RVolShort:           stockPrices[ticker][dateInt64].RealizedVolatility30,
+				RVolShortVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol30,
+				RVolShortAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel30,
+				RVolPercentShort:    stockPrices[ticker][dateInt64].RVolPercent30,
+				RVolHighShort:       stockPrices[ticker][dateInt64].RVolHigh30,
+				RVolLowShort:        stockPrices[ticker][dateInt64].RVolLow30,
+				TradeRangeAdj:       stockPrices[ticker][dateInt64].TradeRangeAdj,
+				PtradeRangeAdj:      stockPrices[ticker][dateInt64].PTradeRangeAdj,
 				// medium duration
-				RVolMed:        stockPrices[ticker][dateInt64].RealizedVolatility60,
-				RVolMedVel:     stockPrices[ticker][dateInt64].VelocityRealizedVol60,
-				RVolMedAccel:   stockPrices[ticker][dateInt64].RealizedVolAccel60,
-				RVolPercentMed: stockPrices[ticker][dateInt64].RVolPercent60,
-				RVolHighMed:    stockPrices[ticker][dateInt64].RVolHigh60,
-				RVolLowMed:     stockPrices[ticker][dateInt64].RVolLow60,
-				TrendRangeAdj:  stockPrices[ticker][dateInt64].TrendRangeAdj,
-				PTrendRangeAdj: stockPrices[ticker][dateInt64].PTrendRangeAdj,
+				AvgVolumeMed:      stockPrices[ticker][dateInt64].AvgVolume60,
+				AvgVolumeRatioMed: stockPrices[ticker][dateInt64].AvgVolumeRatio60,
+				RVolMed:           stockPrices[ticker][dateInt64].RealizedVolatility60,
+				RVolMedVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol60,
+				RVolMedAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel60,
+				RVolPercentMed:    stockPrices[ticker][dateInt64].RVolPercent60,
+				RVolHighMed:       stockPrices[ticker][dateInt64].RVolHigh60,
+				RVolLowMed:        stockPrices[ticker][dateInt64].RVolLow60,
+				TrendRangeAdj:     stockPrices[ticker][dateInt64].TrendRangeAdj,
+				PTrendRangeAdj:    stockPrices[ticker][dateInt64].PTrendRangeAdj,
 				// long duration
-				RVolLong:        stockPrices[ticker][dateInt64].RealizedVolatility90,
-				RVolLongVel:     stockPrices[ticker][dateInt64].VelocityRealizedVol90,
-				RVolLongAccel:   stockPrices[ticker][dateInt64].RealizedVolAccel90,
-				RVolPercentLong: stockPrices[ticker][dateInt64].RVolPercent90,
-				RVolHighLong:    stockPrices[ticker][dateInt64].RVolHigh90,
-				RVolLowLong:     stockPrices[ticker][dateInt64].RVolLow90,
-				TailRangeAdj:    stockPrices[ticker][dateInt64].TailRangeAdj,
-				PTailRangeAdj:   stockPrices[ticker][dateInt64].PTailRangeAdj,
+				AvgVolumeLong:      stockPrices[ticker][dateInt64].AvgVolume90,
+				AvgVolumeRatioLong: stockPrices[ticker][dateInt64].AvgVolumeRatio90,
+				RVolLong:           stockPrices[ticker][dateInt64].RealizedVolatility90,
+				RVolLongVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol90,
+				RVolLongAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel90,
+				RVolPercentLong:    stockPrices[ticker][dateInt64].RVolPercent90,
+				RVolHighLong:       stockPrices[ticker][dateInt64].RVolHigh90,
+				RVolLowLong:        stockPrices[ticker][dateInt64].RVolLow90,
+				TailRangeAdj:       stockPrices[ticker][dateInt64].TailRangeAdj,
+				PTailRangeAdj:      stockPrices[ticker][dateInt64].PTailRangeAdj,
 			}
 		}
 	}
