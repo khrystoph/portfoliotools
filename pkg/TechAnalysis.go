@@ -294,8 +294,11 @@ func createAlpacaClient(APIKey, APISecretKey string, live bool) (client *alpaca.
 func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, startTimeMilli,
 	endTimeMilli time.Time) (stockData map[string]map[int64]SingleStockCandle, err error) {
 	var (
-		result map[string]any
-		url    string
+		result             map[string]any
+		url                string
+		feed               = "sip"
+		originalTicker     = ticker
+		originalResolution = resolution
 	)
 	if endTimeMilli.Format(time.DateOnly) == time.Now().Format(time.DateOnly) {
 		endTimeMilli = endTimeMilli.AddDate(0, 0, -1)
@@ -320,7 +323,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 			resolution + "&start=" + startTime + "&end=" + endTime + "&limit=1000&sort=asc"
 	} else {
 		url = "https://data.alpaca.markets/v2/stocks/bars?symbols=" + ticker + "&timeframe=" + resolution +
-			"&start=" + startTime + "&end=" + endTime + "&limit=1000&adjustment=split&feed=sip&sort=asc"
+			"&start=" + startTime + "&end=" + endTime + "&limit=1000&adjustment=split&feed=" + feed + "&sort=asc"
 	}
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("accept", "application/json")
@@ -340,30 +343,60 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 		fmt.Errorf("error unmarshalling stock data: %e", err)
 	}
 
-	stockPrices := result["bars"].(map[string]any)
-	for stockSymbol := range stockPrices {
-		hb := stockPrices[stockSymbol].([]any)
-		if _, ok := stockData[stockSymbol]; !ok {
-			stockData[stockSymbol] = map[int64]SingleStockCandle{}
+	stockPrices, ok := result["bars"].(map[string]any)
+	if !ok || len(stockPrices) == 0 {
+		fmt.Printf("results do not exist.\n")
+		if strings.HasPrefix(originalTicker, "X:") {
+			originalTicker = strings.Replace(originalTicker, "/", "", -1)
 		}
-		for _, val := range hb {
-			bar := val.(map[string]any)
-			timeStamp := bar["t"].(string)
-			ts, tsErr := time.Parse(time.RFC3339, timeStamp)
-			if tsErr != nil {
-				fmt.Errorf("error converting timestamp to time: %e", tsErr)
+		switch originalResolution {
+		case "1T":
+			originalResolution = "minute"
+		case "1H":
+			originalResolution = "hour"
+		case "1W":
+			originalResolution = "week"
+		case "1M":
+			originalResolution = "month"
+		case "1Q":
+			originalResolution = "quarter"
+		case "1Y":
+			originalResolution = "year"
+		case "1D":
+			fallthrough
+		default:
+			originalResolution = "day"
+		}
+		stockData, err = GetStockPrices(originalTicker, clientConfs.PolygonAPIToken, originalResolution, startTimeMilli, endTimeMilli)
+		if err != nil {
+			fmt.Errorf("error pulling stock data from polygon\n")
+			return nil, err
+		}
+	} else {
+		for stockSymbol := range stockPrices {
+			hb := stockPrices[stockSymbol].([]any)
+			if _, ok := stockData[stockSymbol]; !ok {
+				stockData[stockSymbol] = map[int64]SingleStockCandle{}
 			}
-			tsUnixMilli := ts.UnixMilli()
-			stockData[stockSymbol][tsUnixMilli] = SingleStockCandle{
-				Ticker:         stockSymbol,
-				Close:          bar["c"].(float64),
-				High:           bar["h"].(float64),
-				Low:            bar["l"].(float64),
-				Open:           bar["o"].(float64),
-				Transactions:   int64(bar["n"].(float64)),
-				Timestamp:      ts,
-				Volume:         bar["v"].(float64),
-				WeightedVolume: bar["vw"].(float64),
+			for _, val := range hb {
+				bar := val.(map[string]any)
+				timeStamp := bar["t"].(string)
+				ts, tsErr := time.Parse(time.RFC3339, timeStamp)
+				if tsErr != nil {
+					fmt.Errorf("error converting timestamp to time: %w\n", tsErr)
+				}
+				tsUnixMilli := ts.UnixMilli()
+				stockData[stockSymbol][tsUnixMilli] = SingleStockCandle{
+					Ticker:         stockSymbol,
+					Close:          bar["c"].(float64),
+					High:           bar["h"].(float64),
+					Low:            bar["l"].(float64),
+					Open:           bar["o"].(float64),
+					Transactions:   int64(bar["n"].(float64)),
+					Timestamp:      ts,
+					Volume:         bar["v"].(float64),
+					WeightedVolume: bar["vw"].(float64),
+				}
 			}
 		}
 	}
