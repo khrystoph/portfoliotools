@@ -292,7 +292,7 @@ func createAlpacaClient(APIKey, APISecretKey string, live bool) (client *alpaca.
 // GetStockPricesAlpaca retrieves stock prices using Alpaca's stock API. It does NOT gather crypto data using the stock
 // api, which is counter to polygon's behavior.
 func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, startTimeMilli,
-	endTimeMilli time.Time) (stockData map[string]map[int64]SingleStockCandle, err error) {
+	endTimeMilli time.Time, isDebug bool) (stockData map[string]map[int64]SingleStockCandle, err error) {
 	var (
 		result             map[string]any
 		url                string
@@ -345,7 +345,9 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 
 	stockPrices, ok := result["bars"].(map[string]any)
 	if !ok || len(stockPrices) == 0 {
-		fmt.Printf("results do not exist.\n")
+		if isDebug {
+			fmt.Printf("results do not exist.\n")
+		}
 		if strings.HasPrefix(originalTicker, "X:") {
 			originalTicker = strings.Replace(originalTicker, "/", "", -1)
 		}

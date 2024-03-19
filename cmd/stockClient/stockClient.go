@@ -108,7 +108,7 @@ func main() {
 		default:
 			resolution = "1D"
 		}
-		tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, strings.ToUpper(ticker), resolution, startTimeMilli, endTimeMilli)
+		tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, strings.ToUpper(ticker), resolution, startTimeMilli, endTimeMilli, debug)
 		if err != nil {
 			fmt.Errorf("unable to retrieve stock data: %e", err)
 		}
