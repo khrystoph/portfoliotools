@@ -68,6 +68,7 @@ type SingleStockCandle struct {
 	Volume                float64            `json:"volume"`
 	WeightedVolume        float64            `json:"weighted-volume"`
 	PriceVelocity         float64            `json:"price-velocity"`
+	PriceAccel            float64            `json:"price-acceleration"`
 	AvgVolume30           float64            `json:"avg-volume-30"`
 	AvgVolume60           float64            `json:"avg-volume-60"`
 	AvgVolume90           float64            `json:"avg-volume-90"`
@@ -114,6 +115,7 @@ type condensedStockCandle struct {
 	Close               float64            `json:"close"`
 	Volume              float64            `json:"volume"`
 	PriceVelocity       float64            `json:"price-velocity"`
+	PriceAcceleration   float64            `json:"price-acceleration"`
 	Timestamp           time.Time          `json:"timestamp"`
 	AvgVolumeShort      float64            `json:"short-avg-volume"`
 	AvgVolumeRatioShort float64            `json:"short-avg-volume-ratio"`
@@ -178,10 +180,11 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 		for dateInt64 := range stockPrices[ticker] {
 			condensedPrices[ticker][dateInt64] = condensedStockCandle{
 				// Base data from pulling stock candles from data provider
-				Ticker:        stockPrices[ticker][dateInt64].Ticker,
-				Close:         stockPrices[ticker][dateInt64].Close,
-				Volume:        stockPrices[ticker][dateInt64].Volume,
-				PriceVelocity: stockPrices[ticker][dateInt64].PriceVelocity,
+				Ticker:            stockPrices[ticker][dateInt64].Ticker,
+				Close:             stockPrices[ticker][dateInt64].Close,
+				Volume:            stockPrices[ticker][dateInt64].Volume,
+				PriceVelocity:     stockPrices[ticker][dateInt64].PriceVelocity,
+				PriceAcceleration: stockPrices[ticker][dateInt64].PriceAccel,
 
 				Timestamp: stockPrices[ticker][dateInt64].Timestamp,
 				// short duration
@@ -304,7 +307,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 		originalTicker     = ticker
 		originalResolution = resolution
 	)
-	if endTimeMilli.Format(time.DateOnly) == time.Now().Format(time.DateOnly) {
+	if endTimeMilli.Format(time.DateOnly) == time.Now().Format(time.DateOnly) && !strings.HasPrefix(ticker, "X:") {
 		endTimeMilli = endTimeMilli.AddDate(0, 0, -1)
 	}
 	var startTime = startTimeMilli.Format(time.DateOnly)
@@ -433,7 +436,7 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 	for iter.Next() {
 		ts := time.Time(iter.Item().Timestamp).UnixMilli()
 		stockPrices[ticker][ts] = SingleStockCandle{
-			Ticker:         ticker,
+			Ticker:         strings.Replace(ticker, "X:", "", -1),
 			Close:          iter.Item().Close,
 			High:           iter.Item().High,
 			Low:            iter.Item().Low,
@@ -501,46 +504,47 @@ func RealizedVolatility(prices []float64, ticker string) (realizedVol float64) {
 	return math.Sqrt(variance * daysInYear)
 }
 
-func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticker string) (stockPriceData map[string]map[int64]SingleStockCandle) {
-	var dateKeys []int64
-	for dateKey := range stockPrices[ticker] {
-		dateKeys = append(dateKeys, dateKey)
-	}
-	reverseDateKeys := dateKeys
-	// Sort our date keys in reverse order such that the most recent date is first and the oldest date is last
-	sort.Slice(reverseDateKeys, func(i, j int) bool {
-		return reverseDateKeys[i] > reverseDateKeys[j]
-	})
-	for index, date := range reverseDateKeys {
-		stockCandle := stockPrices[ticker][date]
-		shortDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*SHORTDURATION).UnixMilli()
-		medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
-		longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
+func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceData map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		reverseDateKeys := dateKeys
+		// Sort our date keys in reverse order such that the most recent date is first and the oldest date is last
+		sort.Slice(reverseDateKeys, func(i, j int) bool {
+			return reverseDateKeys[i] > reverseDateKeys[j]
+		})
+		for index, date := range reverseDateKeys {
+			stockCandle := stockPrices[ticker][date]
+			shortDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*SHORTDURATION).UnixMilli()
+			medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
+			longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
 
-		if index+SHORTDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= shortDurationStartMilli {
-			var volDatesShort []int64
-			for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
-				volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
+			if index+SHORTDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= shortDurationStartMilli {
+				var volDatesShort []int64
+				for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
+					volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
+				}
+				stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
 			}
-			stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
-		}
-		if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
-			var volDatesMed []int64
-			for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
-				volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
+			if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
+				var volDatesMed []int64
+				for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
+					volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
+				}
+				stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
 			}
-			stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
-		}
-		if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
-			var volDatesLong []int64
-			for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
-				volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
+			if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
+				var volDatesLong []int64
+				for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
+					volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
+				}
+				stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
 			}
-			stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
+			stockPrices[ticker][date] = stockCandle
 		}
-		stockPrices[ticker][date] = stockCandle
 	}
-
 	return stockPrices
 }
 
@@ -613,7 +617,7 @@ func CalculateVelocities(stockPrices map[string]map[int64]SingleStockCandle) (st
 	return stockPriceMap
 }
 
-func CalculateRealizedVolatilityAccel(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+func CalculateAccelerations(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var prevDate = int64(0)
 		var int64DateArray []int64
@@ -631,6 +635,7 @@ func CalculateRealizedVolatilityAccel(stockPrices map[string]map[int64]SingleSto
 				singleStock.RealizedVolAccel30 = stockPrices[ticker][int64Date].VelocityRealizedVol30 - stockPrices[ticker][prevDate].VelocityRealizedVol30
 				singleStock.RealizedVolAccel60 = stockPrices[ticker][int64Date].VelocityRealizedVol60 - stockPrices[ticker][prevDate].VelocityRealizedVol60
 				singleStock.RealizedVolAccel90 = stockPrices[ticker][int64Date].VelocityRealizedVol90 - stockPrices[ticker][prevDate].VelocityRealizedVol90
+				singleStock.PriceAccel = stockPrices[ticker][int64Date].PriceVelocity - stockPrices[ticker][prevDate].PriceVelocity
 			}
 			stockPrices[ticker][int64Date] = singleStock
 			prevDate = int64Date
