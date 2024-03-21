@@ -130,7 +130,7 @@ func main() {
 	tickerData = pkg.CalculateAvgVolumeRatios(tickerData)
 	tickerData = pkg.CalculateRiskRanges(tickerData)
 	tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData)
-	tickerData = pkg.CalculateVelocityOfVolatility(tickerData)
+	tickerData = pkg.CalculateVelocities(tickerData)
 	tickerData = pkg.CalculateRealizedVolatilityAccel(tickerData)
 	tickerData = pkg.GetProbAdjRiskRanges(tickerData, stockDataConfig.RangeAdjustment)
 

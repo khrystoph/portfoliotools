@@ -67,6 +67,7 @@ type SingleStockCandle struct {
 	Timestamp             time.Time          `json:"timestamp"`
 	Volume                float64            `json:"volume"`
 	WeightedVolume        float64            `json:"weighted-volume"`
+	PriceVelocity         float64            `json:"price-velocity"`
 	AvgVolume30           float64            `json:"avg-volume-30"`
 	AvgVolume60           float64            `json:"avg-volume-60"`
 	AvgVolume90           float64            `json:"avg-volume-90"`
@@ -112,6 +113,7 @@ type condensedStockCandle struct {
 	Ticker              string             `json:"ticker"`
 	Close               float64            `json:"close"`
 	Volume              float64            `json:"volume"`
+	PriceVelocity       float64            `json:"price-velocity"`
 	Timestamp           time.Time          `json:"timestamp"`
 	AvgVolumeShort      float64            `json:"short-avg-volume"`
 	AvgVolumeRatioShort float64            `json:"short-avg-volume-ratio"`
@@ -176,9 +178,11 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 		for dateInt64 := range stockPrices[ticker] {
 			condensedPrices[ticker][dateInt64] = condensedStockCandle{
 				// Base data from pulling stock candles from data provider
-				Ticker:    stockPrices[ticker][dateInt64].Ticker,
-				Close:     stockPrices[ticker][dateInt64].Close,
-				Volume:    stockPrices[ticker][dateInt64].Volume,
+				Ticker:        stockPrices[ticker][dateInt64].Ticker,
+				Close:         stockPrices[ticker][dateInt64].Close,
+				Volume:        stockPrices[ticker][dateInt64].Volume,
+				PriceVelocity: stockPrices[ticker][dateInt64].PriceVelocity,
+
 				Timestamp: stockPrices[ticker][dateInt64].Timestamp,
 				// short duration
 				AvgVolumeShort:      stockPrices[ticker][dateInt64].AvgVolume30,
@@ -581,7 +585,7 @@ func calculateRiskRange(price, volatility, riskRangeDuration float64, ticker str
 	return
 }
 
-func CalculateVelocityOfVolatility(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+func CalculateVelocities(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var prevDate = int64(0)
 		var int64DateArray []int64
@@ -599,6 +603,7 @@ func CalculateVelocityOfVolatility(stockPrices map[string]map[int64]SingleStockC
 				singleStock.VelocityRealizedVol30 = stockPrices[ticker][int64Date].RealizedVolatility30 - stockPrices[ticker][prevDate].RealizedVolatility30
 				singleStock.VelocityRealizedVol60 = stockPrices[ticker][int64Date].RealizedVolatility60 - stockPrices[ticker][prevDate].RealizedVolatility60
 				singleStock.VelocityRealizedVol90 = stockPrices[ticker][int64Date].RealizedVolatility90 - stockPrices[ticker][prevDate].RealizedVolatility90
+				singleStock.PriceVelocity = stockPrices[ticker][int64Date].Close - stockPrices[ticker][prevDate].Close
 			}
 			stockPrices[ticker][int64Date] = singleStock
 			prevDate = int64Date
