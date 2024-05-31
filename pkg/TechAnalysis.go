@@ -21,8 +21,8 @@ import (
 
 const DAY = 24
 const YEAR = 365.24
-const LONGDURATION = 90
-const MEDIUMDURATION = 60
+const LONGDURATION = 180
+const MEDIUMDURATION = 90
 const SHORTDURATION = 30
 const TRADINGDAYSPERYEAR = 252
 const ALPACA_PAPER_API = "https://paper-api.alpaca.markets"
@@ -78,6 +78,9 @@ type SingleStockCandle struct {
 	ThirtyDaysPrices      map[string]float64 `json:"30-days-prices"`
 	SixtyDaysPrices       map[string]float64 `json:"60-days-prices"`
 	NinetyDaysPrices      map[string]float64 `json:"90-days-prices"`
+	SlopeShortDuration    float64            `json:"trade-slope"`
+	SlopeMedDuration      float64            `json:"trend-slope"`
+	SlopeLongDuration     float64            `json:"tail-slope"`
 	RVolHigh30            float64            `json:"30-day-rvol-high"`
 	RVolLow30             float64            `json:"30-day-rvol-low"`
 	RVolHigh60            float64            `json:"60-day-rvol-high"`
@@ -119,6 +122,7 @@ type condensedStockCandle struct {
 	Timestamp           time.Time          `json:"timestamp"`
 	AvgVolumeShort      float64            `json:"short-avg-volume"`
 	AvgVolumeRatioShort float64            `json:"short-avg-volume-ratio"`
+	TradeSlope          float64            `json:"trade-slope"`
 	RVolShort           float64            `json:"rvol-short"`
 	RVolShortVel        float64            `json:"rvol-short-vel"`
 	RVolShortAccel      float64            `json:"rvol-short-accel"`
@@ -129,6 +133,7 @@ type condensedStockCandle struct {
 	PtradeRangeAdj      map[string]float64 `json:"prob-trade-range-vadj"`
 	AvgVolumeMed        float64            `json:"med-avg-volume"`
 	AvgVolumeRatioMed   float64            `json:"med-avg-volume-ratio"`
+	TrendSlope          float64            `json:"trend-slope"`
 	RVolMed             float64            `json:"rvol-med"`
 	RVolMedVel          float64            `json:"rvol-med-vel"`
 	RVolMedAccel        float64            `json:"rvol-med-accel"`
@@ -139,6 +144,7 @@ type condensedStockCandle struct {
 	PTrendRangeAdj      map[string]float64 `json:"prob-trend-range-vadj"`
 	AvgVolumeLong       float64            `json:"long-avg-volume"`
 	AvgVolumeRatioLong  float64            `json:"long-avg-volume-ratio"`
+	TailSlope           float64            `json:"tail-slope"`
 	RVolLong            float64            `json:"rvol-long"`
 	RVolLongVel         float64            `json:"rvol-long-vel"`
 	RVolLongAccel       float64            `json:"rvol-long-accel"`
@@ -190,6 +196,7 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 				// short duration
 				AvgVolumeShort:      stockPrices[ticker][dateInt64].AvgVolume30,
 				AvgVolumeRatioShort: stockPrices[ticker][dateInt64].AvgVolumeRatio30,
+				TradeSlope:          stockPrices[ticker][dateInt64].SlopeShortDuration,
 				RVolShort:           stockPrices[ticker][dateInt64].RealizedVolatility30,
 				RVolShortVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol30,
 				RVolShortAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel30,
@@ -201,6 +208,7 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 				// medium duration
 				AvgVolumeMed:      stockPrices[ticker][dateInt64].AvgVolume60,
 				AvgVolumeRatioMed: stockPrices[ticker][dateInt64].AvgVolumeRatio60,
+				TrendSlope:        stockPrices[ticker][dateInt64].SlopeMedDuration,
 				RVolMed:           stockPrices[ticker][dateInt64].RealizedVolatility60,
 				RVolMedVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol60,
 				RVolMedAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel60,
@@ -212,6 +220,7 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 				// long duration
 				AvgVolumeLong:      stockPrices[ticker][dateInt64].AvgVolume90,
 				AvgVolumeRatioLong: stockPrices[ticker][dateInt64].AvgVolumeRatio90,
+				TailSlope:          stockPrices[ticker][dateInt64].SlopeLongDuration,
 				RVolLong:           stockPrices[ticker][dateInt64].RealizedVolatility90,
 				RVolLongVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol90,
 				RVolLongAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel90,
@@ -875,4 +884,106 @@ func calculateRVolPercentRange(rVolHigh, rVolLow, rVol float64) (rvolPercent flo
 		return 0.0, err
 	}
 	return (rVol - rVolLow) / (rVolHigh - rVolLow), nil
+}
+
+func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		for dateInt64 := range stockPrices[ticker] {
+			singleTickerData := stockPrices[ticker][dateInt64]
+			if len(stockPrices[ticker][dateInt64].ThirtyDaysPrices) > 0 {
+				var shortClosingPriceXValsSlice []float64
+				var shortClosingPriceYValsSlice []float64
+				shortDurationIndex := 0
+				for dateString := range stockPrices[ticker][dateInt64].ThirtyDaysPrices {
+					shortClosingPriceYValsSlice = append(shortClosingPriceYValsSlice, stockPrices[ticker][dateInt64].ThirtyDaysPrices[dateString])
+					shortDurationIndex++
+					shortClosingPriceXValsSlice = append(shortClosingPriceXValsSlice, float64(shortDurationIndex))
+				}
+				shortSlope, shortIntercept, err := calcLinearRegression(shortClosingPriceXValsSlice, shortClosingPriceYValsSlice)
+				if err != nil {
+					fmt.Errorf("error getting linear regression: %e", err)
+				}
+				if isDebug {
+					fmt.Printf("Date: %s", stockPrices[ticker][dateInt64].Timestamp)
+					fmt.Printf("short ClosingPrices: %v\n", shortClosingPriceYValsSlice)
+					fmt.Printf("short XVals: %v\n", shortClosingPriceXValsSlice)
+					fmt.Printf("ShortDuration linear regression intercept: %f\n", shortIntercept)
+				}
+				singleTickerData.SlopeShortDuration = shortSlope
+			} else {
+				singleTickerData.SlopeShortDuration = 0.0
+			}
+
+			if len(stockPrices[ticker][dateInt64].SixtyDaysPrices) > 0 {
+				var medClosingPriceXValsSlice []float64
+				var medClosingPriceYValsSlice []float64
+				medDurationIndex := 0
+				for dateString := range stockPrices[ticker][dateInt64].SixtyDaysPrices {
+					medClosingPriceYValsSlice = append(medClosingPriceYValsSlice, stockPrices[ticker][dateInt64].SixtyDaysPrices[dateString])
+					medDurationIndex++
+					medClosingPriceXValsSlice = append(medClosingPriceXValsSlice, float64(medDurationIndex))
+				}
+				medSlope, medIntercept, err := calcLinearRegression(medClosingPriceXValsSlice, medClosingPriceYValsSlice)
+				if err != nil {
+					fmt.Errorf("error getting linear regression: %e", err)
+				}
+				if isDebug {
+					fmt.Printf("MedDuration linear regression intercept: %f\n", medIntercept)
+				}
+				singleTickerData.SlopeMedDuration = medSlope
+			} else {
+				singleTickerData.SlopeMedDuration = 0.0
+			}
+
+			if len(stockPrices[ticker][dateInt64].NinetyDaysPrices) > 0 {
+				var longClosingPriceXValsSlice []float64
+				var longClosingPriceYValsSlice []float64
+				longDurationIndex := 0
+				for dateString := range stockPrices[ticker][dateInt64].NinetyDaysPrices {
+					longClosingPriceYValsSlice = append(longClosingPriceYValsSlice, stockPrices[ticker][dateInt64].NinetyDaysPrices[dateString])
+					longDurationIndex++
+					longClosingPriceXValsSlice = append(longClosingPriceXValsSlice, float64(longDurationIndex))
+				}
+				longSlope, longIntercept, err := calcLinearRegression(longClosingPriceXValsSlice, longClosingPriceYValsSlice)
+				if err != nil {
+					fmt.Errorf("error getting linear regression: %e", err)
+					return stockPrices
+				}
+				if isDebug {
+					fmt.Printf("LongDuration linear regression intercept: %f\n", longIntercept)
+				}
+				singleTickerData.SlopeLongDuration = longSlope
+			} else {
+				singleTickerData.SlopeLongDuration = 0.0
+			}
+
+			stockPrices[ticker][dateInt64] = singleTickerData
+		}
+	}
+	return stockPrices
+}
+
+func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64, err error) {
+	if len(xValues) != len(yValues) || len(xValues) < 2 {
+		return 0, 0, errors.New("invalid input: x and y slices must have the same length and at least 2 data points")
+	}
+
+	n := float64(len(xValues))
+	var sumX, sumY, sumXY, sumX2 float64
+
+	// Calculate sums
+	for i := 0; i < len(xValues); i++ {
+		sumX += xValues[i]
+		sumY += yValues[i]
+		sumXY += xValues[i] * yValues[i]
+		sumX2 += math.Pow(xValues[i], 2)
+	}
+
+	// Calculate slope (m)
+	slope = (n*sumXY - sumX*sumY) / (n*sumX2 - math.Pow(sumX, 2))
+
+	// Calculate y-intercept (b)
+	intercept = (sumY - slope*sumX) / n
+
+	return slope, intercept, nil
 }
