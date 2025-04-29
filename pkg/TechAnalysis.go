@@ -594,7 +594,7 @@ func calculateRiskRange(price, volatility, riskRangeDuration float64, ticker str
 	riskRange = make(map[string]float64)
 	daysInYear := annualization(ticker)
 	riskRange["high"] = (1 + (volatility / daysInYear * riskRangeDuration)) * price
-	riskRange["low"] = (1 - (volatility / daysInYear * riskRangeDuration)) * price
+	riskRange["low"] = math.Max(0, 1-(volatility/daysInYear*riskRangeDuration)*price)
 	return
 }
 
