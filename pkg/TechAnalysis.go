@@ -28,133 +28,6 @@ const TRADINGDAYSPERYEAR = 252
 const ALPACA_PAPER_API = "https://paper-api.alpaca.markets"
 const ALPACA_LIVE_API = "https://api.alpaca.markets"
 
-type StockDataConf struct {
-	PolygonAPIToken string  `json:"polygon-api-key"`
-	AlpacaAPIKey    string  `json:"alpaca-api-key"`
-	AlpacaSecretKey string  `json:"alpaca-secret-key"`
-	RangeAdjustment float64 `json:"probable-range-adj"`
-}
-
-// OHLC is a struct that contains the Open, High, Low, and Close values from a range of times for a specific ticker
-type OHLC struct {
-	Close            []float64 `json:"c"`
-	High             []float64 `json:"h"`
-	Low              []float64 `json:"l"`
-	Status           string    `json:"s"`
-	Timestamp        []int64   `json:"t"`
-	TransactionCount []int64   `json:"n"`
-	Volume           []int64   `json:"v"`
-}
-
-type HistoricalBar struct {
-	Close            float64 `json:"c"`
-	High             float64 `json:"h"`
-	Low              float64 `json:"l"`
-	TransactionCount int64   `json:"n"`
-	Open             float64 `json:"o"`
-	Timestamp        string  `json:"t"`
-	Volume           int64   `json:"v"`
-	WeightedVolume   float64 `json:"vw"`
-}
-
-type SingleStockCandle struct {
-	Ticker                string             `json:"ticker"`
-	Close                 float64            `json:"close"`
-	High                  float64            `json:"high"`
-	Low                   float64            `json:"low"`
-	Open                  float64            `json:"open"`
-	Transactions          int64              `json:"transactions"`
-	Timestamp             time.Time          `json:"timestamp"`
-	Volume                float64            `json:"volume"`
-	WeightedVolume        float64            `json:"weighted-volume"`
-	PriceVelocity         float64            `json:"price-velocity"`
-	PriceAccel            float64            `json:"price-acceleration"`
-	AvgVolume30           float64            `json:"avg-volume-30"`
-	AvgVolume60           float64            `json:"avg-volume-60"`
-	AvgVolume90           float64            `json:"avg-volume-90"`
-	AvgVolumeRatio30      float64            `json:"avg-volume-ratio-30"`
-	AvgVolumeRatio60      float64            `json:"avg-volume-ratio-60"`
-	AvgVolumeRatio90      float64            `json:"avg-volume-ratio-90"`
-	ThirtyDaysPrices      map[string]float64 `json:"30-days-prices"`
-	SixtyDaysPrices       map[string]float64 `json:"60-days-prices"`
-	NinetyDaysPrices      map[string]float64 `json:"90-days-prices"`
-	SlopeShortDuration    float64            `json:"trade-slope"`
-	SlopeMedDuration      float64            `json:"trend-slope"`
-	SlopeLongDuration     float64            `json:"tail-slope"`
-	RVolHigh30            float64            `json:"30-day-rvol-high"`
-	RVolLow30             float64            `json:"30-day-rvol-low"`
-	RVolHigh60            float64            `json:"60-day-rvol-high"`
-	RVolLow60             float64            `json:"60-day-rvol-low"`
-	RVolHigh90            float64            `json:"90-day-rvol-high"`
-	RVolLow90             float64            `json:"90-day-rvol-low"`
-	RVolPercent30         float64            `json:"30-day-rvol-range-percent"`
-	RVolPercent60         float64            `json:"60-day-rvol-range-percent"`
-	RVolPercent90         float64            `json:"90-day-rvol-range-percent"`
-	RealizedVolatility30  float64            `json:"30-day-realized-volatility"`
-	RealizedVolatility60  float64            `json:"60-day-realized-volatility"`
-	RealizedVolatility90  float64            `json:"90-day-realized-volatility"`
-	VelocityRealizedVol30 float64            `json:"30-day-realized-volatility-velocity"`
-	VelocityRealizedVol60 float64            `json:"60-day-realized-volatility-velocity"`
-	VelocityRealizedVol90 float64            `json:"90-day-realized-volatility-velocity"`
-	RealizedVolAccel30    float64            `json:"30-day-realized-volatility-accel"`
-	RealizedVolAccel60    float64            `json:"60-day-realized-volatility-accel"`
-	RealizedVolAccel90    float64            `json:"90-day-realized-volatility-accel"`
-	TradeRange            map[string]float64 `json:"trade-range"`
-	TrendRange            map[string]float64 `json:"trend-range"`
-	TailRange             map[string]float64 `json:"tail-range"`
-	TradeRangeAdj         map[string]float64 `json:"trade-range-vadj"`
-	TrendRangeAdj         map[string]float64 `json:"trend-range-vadj"`
-	TailRangeAdj          map[string]float64 `json:"tail-range-vadj"`
-	PTradeRange           map[string]float64 `json:"prob-adj-trade-range"`
-	PTrendRange           map[string]float64 `json:"prob-adj-trend-range"`
-	PTailRange            map[string]float64 `json:"prob-adj-tail-range"`
-	PTradeRangeAdj        map[string]float64 `json:"prob-trade-range-vadj"`
-	PTrendRangeAdj        map[string]float64 `json:"prob-trend-range-vadj"`
-	PTailRangeAdj         map[string]float64 `json:"prob-tail-range-vadj"`
-}
-
-type condensedStockCandle struct {
-	Ticker              string             `json:"ticker"`
-	Close               float64            `json:"close"`
-	Volume              float64            `json:"volume"`
-	PriceVelocity       float64            `json:"price-velocity"`
-	PriceAcceleration   float64            `json:"price-acceleration"`
-	Timestamp           time.Time          `json:"timestamp"`
-	AvgVolumeShort      float64            `json:"short-avg-volume"`
-	AvgVolumeRatioShort float64            `json:"short-avg-volume-ratio"`
-	TradeSlope          float64            `json:"trade-slope"`
-	RVolShort           float64            `json:"rvol-short"`
-	RVolShortVel        float64            `json:"rvol-short-vel"`
-	RVolShortAccel      float64            `json:"rvol-short-accel"`
-	RVolPercentShort    float64            `json:"short-day-rvol-range-percent"`
-	RVolHighShort       float64            `json:"short-day-rvol-high"`
-	RVolLowShort        float64            `json:"short-day-rvol-low"`
-	TradeRangeAdj       map[string]float64 `json:"trade-range-vadj"`
-	PtradeRangeAdj      map[string]float64 `json:"prob-trade-range-vadj"`
-	AvgVolumeMed        float64            `json:"med-avg-volume"`
-	AvgVolumeRatioMed   float64            `json:"med-avg-volume-ratio"`
-	TrendSlope          float64            `json:"trend-slope"`
-	RVolMed             float64            `json:"rvol-med"`
-	RVolMedVel          float64            `json:"rvol-med-vel"`
-	RVolMedAccel        float64            `json:"rvol-med-accel"`
-	RVolPercentMed      float64            `json:"med-day-rvol-range-percent"`
-	RVolHighMed         float64            `json:"med-day-rvol-high"`
-	RVolLowMed          float64            `json:"med-day-rvol-low"`
-	TrendRangeAdj       map[string]float64 `json:"trend-range-vadj"`
-	PTrendRangeAdj      map[string]float64 `json:"prob-trend-range-vadj"`
-	AvgVolumeLong       float64            `json:"long-avg-volume"`
-	AvgVolumeRatioLong  float64            `json:"long-avg-volume-ratio"`
-	TailSlope           float64            `json:"tail-slope"`
-	RVolLong            float64            `json:"rvol-long"`
-	RVolLongVel         float64            `json:"rvol-long-vel"`
-	RVolLongAccel       float64            `json:"rvol-long-accel"`
-	RVolPercentLong     float64            `json:"long-day-rvol-range-percent"`
-	RVolHighLong        float64            `json:"long-day-rvol-high"`
-	RVolLowLong         float64            `json:"long-day-rvol-low"`
-	TailRangeAdj        map[string]float64 `json:"tail-range-vadj"`
-	PTailRangeAdj       map[string]float64 `json:"prob-tail-range-vadj"`
-}
-
 func PrintData(stockPrices map[string]map[int64]SingleStockCandle, debug bool) {
 	var jsonTickerData []byte
 	var err error
@@ -986,4 +859,34 @@ func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64,
 	intercept = (sumY - slope*sumX) / n
 
 	return slope, intercept, nil
+}
+
+// CalculateTrend takes the end date and returns the difference between the input date's close price and the close price
+// of the date that is back a number of days prior to the input date
+func CalculateTrend(stockPrices map[string]map[int64]SingleStockCandle, ticker string, endDate time.Time, tickerDuration int64) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	/*
+	* Take the Close price from the input date and subtract a number of days equal to the duration. If a date does not
+	* exist, but is not prior to the start date, subtract another day and try again until hitting a number that exists.
+	 */
+	var trendInt float64
+	endDateMilli := endDate.UnixMilli()
+	startDateMilli := endDateMilli - time.Hour.Milliseconds()*DAY*tickerDuration
+
+	trendInt = stockPrices[ticker][endDateMilli].Close - stockPrices[ticker][startDateMilli].Close
+
+	trendRatio := trendInt / stockPrices[ticker][endDateMilli].Close
+	stockPrice := stockPrices[ticker][endDateMilli]
+
+	switch trendRatio {
+	case SHORTDURATION:
+
+		stockPrice.SlopeShortDuration = trendRatio
+	case MEDIUMDURATION:
+		stockPrice.SlopeMedDuration = trendRatio
+	case LONGDURATION:
+		stockPrice.SlopeLongDuration = trendRatio
+	}
+	stockPrices[ticker][endDateMilli] = stockPrice
+
+	return stockPrices
 }
