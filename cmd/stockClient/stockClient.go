@@ -112,11 +112,11 @@ func main() {
 		if err != nil {
 			fmt.Errorf("unable to retrieve stock data: %e", err)
 		}
-	} else {
 		if strings.HasPrefix(strings.ToUpper(ticker), "X:") {
 			ticker = strings.Split(ticker, ":")[1]
 			fmt.Printf("ticker: %s\n", ticker)
 		}
+	} else {
 		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.PolygonAPIToken, resolution, startTimeMilli, endTimeMilli)
 		if err != nil {
 			fmt.Errorf("unable to get stock prices")
