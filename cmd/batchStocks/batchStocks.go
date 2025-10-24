@@ -215,7 +215,7 @@ func main() {
 		}
 	}
 
-	jsonData, err := json.Marshal(batchStockRanges)
+	jsonData, err := json.MarshalIndent(batchStockRanges, "", "  ")
 	if err != nil {
 		log.Fatal(err)
 	}
