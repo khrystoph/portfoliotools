@@ -463,6 +463,7 @@ func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (st
 	return stockPrices
 }
 
+// todo: add test for riskRange["low"]
 func calculateRiskRange(price, volatility, riskRangeDuration float64, ticker string) (riskRange map[string]float64) {
 	riskRange = make(map[string]float64)
 	daysInYear := annualization(ticker)

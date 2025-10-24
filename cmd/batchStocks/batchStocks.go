@@ -103,6 +103,10 @@ func main() {
 	}
 
 	for _, tickerItem := range tickerArray {
+		isCrypto := false
+		if strings.HasPrefix(strings.ToUpper(tickerItem), "X:") {
+			isCrypto = true
+		}
 		if stockDataConfig.AlpacaAPIKey != "" {
 			switch resolution {
 			case "minute", "Minute", "MINUTE", "M", "m":
@@ -124,10 +128,6 @@ func main() {
 				log.Fatal(err)
 			}
 		} else {
-			if strings.HasPrefix(strings.ToUpper(tickerItem), "X:") {
-				tickerItem = strings.Split(tickerItem, ":")[1]
-				fmt.Printf("ticker: %s\n", tickerItem)
-			}
 			tickerData, err = pkg.GetStockPrices(strings.ToUpper(tickerItem), stockDataConfig.PolygonAPIToken, resolution, startDateMilli, endDate)
 			if err != nil {
 				_ = fmt.Errorf("unable to get stock prices")
@@ -136,9 +136,9 @@ func main() {
 
 		// Call functions to calculate each day's realized volatility, ranges, and adjusted ranges given each duration available (30, 60, 90)
 		tickerData = pkg.StoreRealizedVols(tickerData)
-		tickerData = pkg.GetRelHighLowVol(tickerData)
 		tickerData = pkg.GetAvgVolume(tickerData)
 		tickerData = pkg.CalculateAvgVolumeRatios(tickerData)
+		tickerData = pkg.GetRelHighLowVol(tickerData)
 		tickerData = pkg.CalculateRiskRanges(tickerData)
 		tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData)
 		tickerData = pkg.CalculateVelocities(tickerData)
@@ -154,7 +154,6 @@ func main() {
 		}
 
 		for ticker, stock := range tickerData {
-			// fmt.Printf("ticker: %v\n", ticker)
 			latestDate := int64(0)
 			var durationRVol, rrHigh, rrLow, rvolpct, avgvolratio float64
 			for date, _ := range tickerData[ticker] {
@@ -166,22 +165,37 @@ func main() {
 			switch timeDuration {
 			case "MEDIUM":
 				durationRVol = stock[latestDate].RealizedVolatility60
-				rrHigh = stock[latestDate].PTrendRangeAdj["high"]
-				rrLow = stock[latestDate].PTrendRangeAdj["low"]
+				if isCrypto {
+					rrHigh = stock[latestDate].TrendRangeAdj["high"]
+					rrLow = stock[latestDate].TrendRangeAdj["low"]
+				} else {
+					rrHigh = stock[latestDate].PTrendRangeAdj["high"]
+					rrLow = stock[latestDate].PTrendRangeAdj["low"]
+				}
 				rvolpct = stock[latestDate].RVolPercent60
 				avgvolratio = stock[latestDate].AvgVolumeRatio60
 			case "LONG":
 				durationRVol = stock[latestDate].RealizedVolatility90
-				rrHigh = stock[latestDate].PTailRangeAdj["high"]
-				rrLow = stock[latestDate].PTailRangeAdj["low"]
+				if isCrypto {
+					rrHigh = stock[latestDate].TailRangeAdj["high"]
+					rrLow = stock[latestDate].TailRangeAdj["low"]
+				} else {
+					rrHigh = stock[latestDate].PTailRangeAdj["high"]
+					rrLow = stock[latestDate].PTailRangeAdj["low"]
+				}
 				rvolpct = stock[latestDate].RVolPercent90
 				avgvolratio = stock[latestDate].AvgVolumeRatio90
 			case "SHORT":
 				fallthrough
 			default:
 				durationRVol = stock[latestDate].RealizedVolatility30
-				rrHigh = stock[latestDate].PTradeRangeAdj["high"]
-				rrLow = stock[latestDate].PTradeRangeAdj["low"]
+				if isCrypto {
+					rrHigh = stock[latestDate].TradeRangeAdj["high"]
+					rrLow = stock[latestDate].TradeRangeAdj["low"]
+				} else {
+					rrHigh = stock[latestDate].PTradeRangeAdj["high"]
+					rrLow = stock[latestDate].PTradeRangeAdj["low"]
+				}
 				rvolpct = stock[latestDate].RVolPercent30
 				avgvolratio = stock[latestDate].AvgVolumeRatio30
 			}
