@@ -1,0 +1,16 @@
+{
+  "polygon-api-key": "<your polygon API key here>",
+  "probable-range-adj": 0.1,
+  "alpaca-api-key": "<your alpaca API key here>",
+  "alpaca-secret-key": "<your alpaca API secret key here>",
+  "email-address": "mail@example.com",
+  "email-password": "<your smtp password here>",
+  "hostname": "smtp.example.com",
+  "port": <port number as raw int>,
+  "mail-to":
+    [
+      "mail@example.com",
+      "noreply@example.com",
+      "example3@mail.example.com"
+    ]
+}
