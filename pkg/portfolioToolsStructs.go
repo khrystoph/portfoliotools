@@ -1,6 +1,8 @@
 package pkg
 
-import "time"
+import (
+	"time"
+)
 
 // Vapr
 type Vapr struct {
@@ -10,10 +12,15 @@ type Vapr struct {
 }
 
 type StockDataConf struct {
-	PolygonAPIToken string  `json:"polygon-api-key"`
-	AlpacaAPIKey    string  `json:"alpaca-api-key"`
-	AlpacaSecretKey string  `json:"alpaca-secret-key"`
-	RangeAdjustment float64 `json:"probable-range-adj"`
+	PolygonAPIToken string   `json:"polygon-api-key"`
+	AlpacaAPIKey    string   `json:"alpaca-api-key"`
+	AlpacaSecretKey string   `json:"alpaca-secret-key"`
+	RangeAdjustment float64  `json:"probable-range-adj"`
+	EmailAddress    string   `json:"email-address"`
+	EmailPassword   string   `json:"email-password"`
+	Hostname        string   `json:"hostname"`
+	Port            int      `json:"port"`
+	MailTo          []string `json:"mail-to"`
 }
 
 // OHLC is a struct that contains the Open, High, Low, and Close values from a range of times for a specific ticker

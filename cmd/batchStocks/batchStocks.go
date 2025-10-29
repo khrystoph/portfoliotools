@@ -224,5 +224,9 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = pkg.SendEmail(stockDataConfig, batchStockRangesFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return
 }
