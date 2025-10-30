@@ -16,7 +16,7 @@ import (
 
 var (
 	csvFile, outFile, tickerConfig, batchStockRangesFile, timeDuration string
-	debug                                                              bool
+	debug, excelOut                                                    bool
 )
 
 func init() {
@@ -37,6 +37,10 @@ func init() {
 		"Set the value of the output file of the batch stock ranges.json")
 	flag.StringVar(&batchStockRangesFile, "outfile", "stockRanges.json",
 		"Set the value of the output file of the batch stock ranges.json")
+	flag.BoolVar(&excelOut, "x", false, "Writes a file in excel format using same outfile name as -o "+
+		"except it swaps the file type")
+	flag.BoolVar(&excelOut, "excelfmt", false, "Writes a file in excel format using same outfile name as -o "+
+		"except it swaps the file type")
 	flag.StringVar(&timeDuration, "t", "SHORT",
 		"give the duration in terms of number of candles, such as SHORT for the short-term trend duration")
 }
@@ -222,6 +226,11 @@ func main() {
 	err = os.WriteFile(batchStockRangesFile, jsonData, 0600)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if excelOut {
+		excelOutFile := strings.Split(batchStockRangesFile, ".")[0] + ".xlsx"
+		pkg.GenerateStockReportXLSX(batchStockRanges, excelOutFile)
 	}
 
 	err = pkg.SendEmail(stockDataConfig, batchStockRangesFile)
