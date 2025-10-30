@@ -233,7 +233,7 @@ func main() {
 		pkg.GenerateStockReportXLSX(batchStockRanges, excelOutFile)
 	}
 
-	err = pkg.SendEmail(stockDataConfig, batchStockRangesFile)
+	err = pkg.SendEmail(stockDataConfig, batchStockRangesFile, excelOut)
 	if err != nil {
 		log.Fatal(err)
 	}
