@@ -149,7 +149,7 @@ type CondensedRangesJSON struct {
 	Volume        float64   `json:"volume"`
 	AvgVolRatio   float64   `json:"avg_vol_ratio"`
 	Rvol          float64   `json:"rvol"`
-	RVolPercent   float64   `json:"vol_percent"`
+	RVolPercent   float64   `json:"rvol_percent"`
 	RiskRangeHigh float64   `json:"rr_high"`
 	RiskRangeLow  float64   `json:"rr_low"`
 	Slope         float64   `json:"slope"`

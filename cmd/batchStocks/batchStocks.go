@@ -16,7 +16,7 @@ import (
 
 var (
 	csvFile, outFile, tickerConfig, batchStockRangesFile, timeDuration string
-	debug, excelOut                                                    bool
+	debug, excelOut, noEmail                                           bool
 )
 
 func init() {
@@ -30,6 +30,8 @@ func init() {
 		" of showing more information. Default value: false.")
 	flag.BoolVar(&debug, "d", false, "Toggles debug output for purposes"+
 		" of showing more information. Default value: false.")
+	flag.BoolVar(&noEmail, "n", false, "Toggles whether to send the email or not. For debug purposes.")
+	flag.BoolVar(&noEmail, "noemail", false, "Toggles whether to send the email or not. For debug purposes.")
 	flag.StringVar(&csvFile, "f", "tickers.csv", "path to csv file of tickers in format: ABC,X:DEF,ghi,x:jkl")
 	flag.StringVar(&csvFile, "file", "tickers.csv", "path to csv file of tickers in format: ABC,X:DEF,ghi,x:jkl")
 	flag.StringVar(&outFile, "outFile", "tickers_out.json", "output file for ")
@@ -233,9 +235,11 @@ func main() {
 		pkg.GenerateStockReportXLSX(batchStockRanges, excelOutFile)
 	}
 
-	err = pkg.SendEmail(stockDataConfig, batchStockRangesFile, excelOut)
-	if err != nil {
-		log.Fatal(err)
+	if !noEmail {
+		err = pkg.SendEmail(stockDataConfig, batchStockRangesFile, excelOut)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	return
 }

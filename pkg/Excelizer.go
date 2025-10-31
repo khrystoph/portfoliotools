@@ -55,8 +55,8 @@ func GenerateStockReportXLSX(data map[string]CondensedRangesJSON, outputPath str
 
 	// --- Table header ---
 	headers := []string{
-		"Ticker", "Close", "Volume", "Avg Vol Ratio", "RVOL", "Vol %",
-		"RR High", "RR Low", "Slope", "Trend", "Timestamp",
+		"Ticker", "Close", "Volume", "Avg Vol Ratio", "RVol", "RVol %",
+		"VAPR Low", "VAPR High", "Slope", "Trend", "Timestamp",
 	}
 	headerRow := 4
 
@@ -115,8 +115,8 @@ func GenerateStockReportXLSX(data map[string]CondensedRangesJSON, outputPath str
 			fmt.Sprintf("%.2f", s.AvgVolRatio),
 			fmt.Sprintf("%.2f", s.Rvol),
 			fmt.Sprintf("%.2f", s.RVolPercent),
-			fmt.Sprintf("%.2f", s.RiskRangeHigh),
 			fmt.Sprintf("%.2f", s.RiskRangeLow),
+			fmt.Sprintf("%.2f", s.RiskRangeHigh),
 			fmt.Sprintf("%.2f", s.Slope),
 			s.Trend,
 			s.Timestamp.Format("2006-01-02"),
