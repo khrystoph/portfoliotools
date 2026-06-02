@@ -69,6 +69,14 @@ type SingleStockCandle struct {
 	SlopeShortDuration    float64            `json:"trade-slope"`
 	SlopeMedDuration      float64            `json:"trend-slope"`
 	SlopeLongDuration     float64            `json:"tail-slope"`
+	// slope validity flags — json:"-" keeps them out of JSON output
+	SlopeShortValid bool `json:"-"`
+	SlopeMedValid   bool `json:"-"`
+	SlopeLongValid  bool `json:"-"`
+	// direction labels computed from 3-day slope sign check
+	TradeDirection string `json:"trade-direction"`
+	TrendDirection string `json:"trend-direction"`
+	TailDirection  string `json:"tail-direction"`
 	RVolHigh30            float64            `json:"30-day-rvol-high"`
 	RVolLow30             float64            `json:"30-day-rvol-low"`
 	RVolHigh60            float64            `json:"60-day-rvol-high"`
@@ -133,6 +141,9 @@ type condensedStockCandle struct {
 	AvgVolumeLong       float64            `json:"long-avg-volume"`
 	AvgVolumeRatioLong  float64            `json:"long-avg-volume-ratio"`
 	TailSlope           float64            `json:"tail-slope"`
+	TradeDirection      string             `json:"trade-direction"`
+	TrendDirection      string             `json:"trend-direction"`
+	TailDirection       string             `json:"tail-direction"`
 	RVolLong            float64            `json:"rvol-long"`
 	RVolLongVel         float64            `json:"rvol-long-vel"`
 	RVolLongAccel       float64            `json:"rvol-long-accel"`
@@ -144,15 +155,17 @@ type condensedStockCandle struct {
 }
 
 type CondensedRangesJSON struct {
-	Ticker        string    `json:"ticker"`
-	Close         float64   `json:"close"`
-	Volume        float64   `json:"volume"`
-	AvgVolRatio   float64   `json:"avg_vol_ratio"`
-	Rvol          float64   `json:"rvol"`
-	RVolPercent   float64   `json:"rvol_percent"`
-	RiskRangeHigh float64   `json:"rr_high"`
-	RiskRangeLow  float64   `json:"rr_low"`
-	Slope         float64   `json:"slope"`
-	Trend         string    `json:"trend"`
-	Timestamp     time.Time `json:"timestamp"`
+	Ticker         string    `json:"ticker"`
+	Close          float64   `json:"close"`
+	AvgVolRatio    float64   `json:"avg_vol_ratio"`
+	RVolPercent    float64   `json:"rvol_percent"`
+	RiskRangeHigh  float64   `json:"rr_high"`
+	RiskRangeLow   float64   `json:"rr_low"`
+	TradeSlope     float64   `json:"trade-slope"`
+	TrendSlope     float64   `json:"trend-slope"`
+	TailSlope      float64   `json:"tail-slope"`
+	TradeDirection string    `json:"trade-direction"`
+	TrendDirection string    `json:"trend-direction"`
+	TailDirection  string    `json:"tail-direction"`
+	Timestamp      time.Time `json:"timestamp"`
 }

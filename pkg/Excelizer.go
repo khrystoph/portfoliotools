@@ -29,8 +29,8 @@ func GenerateStockReportXLSX(data map[string]CondensedRangesJSON, outputPath str
 	title := "📊 Stock Range Report"
 	subtitle := fmt.Sprintf("Generated on %s", time.Now().Format("January 2, 2006"))
 
-	f.MergeCell(sheet, "A1", "K1")
-	f.MergeCell(sheet, "A2", "K2")
+	f.MergeCell(sheet, "A1", "M1")
+	f.MergeCell(sheet, "A2", "M2")
 
 	titleStyle, _ := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
@@ -55,8 +55,9 @@ func GenerateStockReportXLSX(data map[string]CondensedRangesJSON, outputPath str
 
 	// --- Table header ---
 	headers := []string{
-		"Ticker", "Close", "Volume", "Avg Vol Ratio", "RVol", "RVol %",
-		"VAPR Low", "VAPR High", "Slope", "Trend", "Timestamp",
+		"Ticker", "Close", "Avg Vol Ratio", "RVol %",
+		"VAPR Low", "VAPR High", "Trade Slope", "Trend Slope", "Tail Slope",
+		"Trade Direction", "Trend Direction", "Tail Direction", "Timestamp",
 	}
 	headerRow := 4
 
@@ -111,14 +112,16 @@ func GenerateStockReportXLSX(data map[string]CondensedRangesJSON, outputPath str
 		row := []interface{}{
 			ticker,
 			fmt.Sprintf("%.2f", s.Close),
-			int64(s.Volume),
 			fmt.Sprintf("%.2f", s.AvgVolRatio),
-			fmt.Sprintf("%.2f", s.Rvol),
 			fmt.Sprintf("%.2f", s.RVolPercent),
 			fmt.Sprintf("%.2f", s.RiskRangeLow),
 			fmt.Sprintf("%.2f", s.RiskRangeHigh),
-			fmt.Sprintf("%.2f", s.Slope),
-			s.Trend,
+			fmt.Sprintf("%.2f", s.TradeSlope),
+			fmt.Sprintf("%.2f", s.TrendSlope),
+			fmt.Sprintf("%.2f", s.TailSlope),
+			s.TradeDirection,
+			s.TrendDirection,
+			s.TailDirection,
 			s.Timestamp.Format("2006-01-02"),
 		}
 
@@ -144,13 +147,13 @@ func GenerateStockReportXLSX(data map[string]CondensedRangesJSON, outputPath str
 
 	// --- Footer ---
 	footerRow := rowIndex + 1
-	f.MergeCell(sheet, fmt.Sprintf("A%d", footerRow), fmt.Sprintf("K%d", footerRow))
+	f.MergeCell(sheet, fmt.Sprintf("A%d", footerRow), fmt.Sprintf("M%d", footerRow))
 	f.SetCellValue(sheet, fmt.Sprintf("A%d", footerRow), "Report generated automatically from stock range data.")
 	footerStyle, _ := f.NewStyle(&excelize.Style{
 		Alignment: &excelize.Alignment{Horizontal: "center"},
 		Font:      &excelize.Font{Italic: true, Size: 10},
 	})
-	f.SetCellStyle(sheet, fmt.Sprintf("A%d", footerRow), fmt.Sprintf("K%d", footerRow), footerStyle)
+	f.SetCellStyle(sheet, fmt.Sprintf("A%d", footerRow), fmt.Sprintf("M%d", footerRow), footerStyle)
 
 	// --- Column widths ---
 	widths := []float64{12, 10, 12, 14, 10, 10, 12, 12, 10, 12, 18}
