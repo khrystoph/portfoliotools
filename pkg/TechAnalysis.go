@@ -866,6 +866,62 @@ func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64,
 	return slope, intercept, nil
 }
 
+// GetSimpleSlopes computes the raw price delta for each duration per day.
+// For each day it looks back N calendar days, rolling back one day at a time
+// until finding a trading day at or before the target, then computes:
+//   slope = close_today - close_at_lookback_date
+//
+// SlopeXxxValid is set true only when a lookback date was found; false means
+// insufficient history and the slope value of 0.0 is meaningless.
+func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) map[string]map[int64]SingleStockCandle {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		// Sort descending so dateKeys[0] is most recent; the inner loop's
+		// first match at or before a target is the nearest-prior trading day.
+		sort.Slice(dateKeys, func(i, j int) bool {
+			return dateKeys[i] > dateKeys[j]
+		})
+
+		for _, currentDate := range dateKeys {
+			stockCandle := stockPrices[ticker][currentDate]
+			currentClose := stockPrices[ticker][currentDate].Close
+
+			shortTarget := time.UnixMilli(currentDate).AddDate(0, 0, -SHORTDURATION).UnixMilli()
+			for _, pastDate := range dateKeys {
+				if pastDate <= shortTarget {
+					stockCandle.SlopeShortDuration = currentClose - stockPrices[ticker][pastDate].Close
+					stockCandle.SlopeShortValid = true
+					break
+				}
+			}
+
+			medTarget := time.UnixMilli(currentDate).AddDate(0, 0, -MEDIUMDURATION).UnixMilli()
+			for _, pastDate := range dateKeys {
+				if pastDate <= medTarget {
+					stockCandle.SlopeMedDuration = currentClose - stockPrices[ticker][pastDate].Close
+					stockCandle.SlopeMedValid = true
+					break
+				}
+			}
+
+			longTarget := time.UnixMilli(currentDate).AddDate(0, 0, -LONGDURATION).UnixMilli()
+			for _, pastDate := range dateKeys {
+				if pastDate <= longTarget {
+					stockCandle.SlopeLongDuration = currentClose - stockPrices[ticker][pastDate].Close
+					stockCandle.SlopeLongValid = true
+					break
+				}
+			}
+
+			stockPrices[ticker][currentDate] = stockCandle
+		}
+	}
+	return stockPrices
+}
+
 // CalculateTrend takes the end date and returns the difference between the input date's close price and the close price
 // of the date that is back a number of days prior to the input date
 func CalculateTrend(stockPrices map[string]map[int64]SingleStockCandle, ticker string, endDate time.Time, tickerDuration int64) (stockPricesMap map[string]map[int64]SingleStockCandle) {
