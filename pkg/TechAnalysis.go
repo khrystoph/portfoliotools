@@ -934,6 +934,70 @@ func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug
 	return stockPrices
 }
 
+// CalculateTrendDirections assigns TradeDirection, TrendDirection, and TailDirection
+// to each day based on whether the three most recent consecutive slopes (today,
+// yesterday, day-before) are all positive (Bullish), all negative (Bearish),
+// mixed (Neutral), or unavailable (Indeterminate).
+//
+// Must be called after GetSimpleSlopes so that validity flags are set.
+func CalculateTrendDirections(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		// Sort ascending so index i-1 and i-2 are the prior trading days.
+		sort.Slice(dateKeys, func(i, j int) bool {
+			return dateKeys[i] < dateKeys[j]
+		})
+
+		for i, currentDate := range dateKeys {
+			stockCandle := stockPrices[ticker][currentDate]
+			if i < 2 {
+				stockCandle.TradeDirection = "Indeterminate"
+				stockCandle.TrendDirection = "Indeterminate"
+				stockCandle.TailDirection = "Indeterminate"
+			} else {
+				prev1 := stockPrices[ticker][dateKeys[i-1]]
+				prev2 := stockPrices[ticker][dateKeys[i-2]]
+
+				stockCandle.TradeDirection = trendLabel(
+					stockCandle.SlopeShortDuration, stockCandle.SlopeShortValid,
+					prev1.SlopeShortDuration, prev1.SlopeShortValid,
+					prev2.SlopeShortDuration, prev2.SlopeShortValid,
+				)
+				stockCandle.TrendDirection = trendLabel(
+					stockCandle.SlopeMedDuration, stockCandle.SlopeMedValid,
+					prev1.SlopeMedDuration, prev1.SlopeMedValid,
+					prev2.SlopeMedDuration, prev2.SlopeMedValid,
+				)
+				stockCandle.TailDirection = trendLabel(
+					stockCandle.SlopeLongDuration, stockCandle.SlopeLongValid,
+					prev1.SlopeLongDuration, prev1.SlopeLongValid,
+					prev2.SlopeLongDuration, prev2.SlopeLongValid,
+				)
+			}
+			stockPrices[ticker][currentDate] = stockCandle
+		}
+	}
+	return stockPrices
+}
+
+// trendLabel returns the direction label for one duration given three consecutive
+// slope values and their validity flags.
+func trendLabel(s0 float64, v0 bool, s1 float64, v1 bool, s2 float64, v2 bool) string {
+	if !v0 || !v1 || !v2 {
+		return "Indeterminate"
+	}
+	if s0 > 0 && s1 > 0 && s2 > 0 {
+		return "Bullish"
+	}
+	if s0 < 0 && s1 < 0 && s2 < 0 {
+		return "Bearish"
+	}
+	return "Neutral"
+}
+
 // CalculateTrend takes the end date and returns the difference between the input date's close price and the close price
 // of the date that is back a number of days prior to the input date
 func CalculateTrend(stockPrices map[string]map[int64]SingleStockCandle, ticker string, endDate time.Time, tickerDuration int64) (stockPricesMap map[string]map[int64]SingleStockCandle) {

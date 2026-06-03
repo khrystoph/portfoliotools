@@ -188,3 +188,137 @@ func TestGetSimpleSlopes(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateTrendDirections(t *testing.T) {
+	day1 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
+	day3 := time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC)
+
+	// allValid builds a candle with all three slopes valid and set to the given value.
+	allValid := func(slope float64) SingleStockCandle {
+		return SingleStockCandle{
+			SlopeShortDuration: slope, SlopeShortValid: true,
+			SlopeMedDuration: slope, SlopeMedValid: true,
+			SlopeLongDuration: slope, SlopeLongValid: true,
+		}
+	}
+
+	tests := []struct {
+		name               string
+		stockPrices        map[string]map[int64]SingleStockCandle
+		ticker             string
+		checkDate          int64
+		wantTradeDirection string
+		wantTrendDirection string
+		wantTailDirection  string
+	}{
+		{
+			name:      "all three slopes positive → Bullish",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(2.0),
+					day3.UnixMilli(): allValid(3.0),
+				},
+			},
+			wantTradeDirection: "Bullish",
+			wantTrendDirection: "Bullish",
+			wantTailDirection:  "Bullish",
+		},
+		{
+			name:      "all three slopes negative → Bearish",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(-1.0),
+					day2.UnixMilli(): allValid(-2.0),
+					day3.UnixMilli(): allValid(-3.0),
+				},
+			},
+			wantTradeDirection: "Bearish",
+			wantTrendDirection: "Bearish",
+			wantTailDirection:  "Bearish",
+		},
+		{
+			name:      "mixed slopes → Neutral",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(-1.0),
+					day3.UnixMilli(): allValid(1.0),
+				},
+			},
+			wantTradeDirection: "Neutral",
+			wantTrendDirection: "Neutral",
+			wantTailDirection:  "Neutral",
+		},
+		{
+			name:      "slope exactly 0.0 with valid=true → Neutral, not Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(0.0),
+					day2.UnixMilli(): allValid(0.0),
+					day3.UnixMilli(): allValid(0.0),
+				},
+			},
+			wantTradeDirection: "Neutral",
+			wantTrendDirection: "Neutral",
+			wantTailDirection:  "Neutral",
+		},
+		{
+			name:      "fewer than 3 days in dataset → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day1.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+		{
+			name:      "valid=false on oldest of the three days → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): {
+						SlopeShortDuration: 1.0, SlopeShortValid: false,
+						SlopeMedDuration: 1.0, SlopeMedValid: false,
+						SlopeLongDuration: 1.0, SlopeLongValid: false,
+					},
+					day2.UnixMilli(): allValid(2.0),
+					day3.UnixMilli(): allValid(3.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateTrendDirections(tt.stockPrices)
+			got := result[tt.ticker][tt.checkDate]
+			if got.TradeDirection != tt.wantTradeDirection {
+				t.Errorf("TradeDirection = %q, want %q", got.TradeDirection, tt.wantTradeDirection)
+			}
+			if got.TrendDirection != tt.wantTrendDirection {
+				t.Errorf("TrendDirection = %q, want %q", got.TrendDirection, tt.wantTrendDirection)
+			}
+			if got.TailDirection != tt.wantTailDirection {
+				t.Errorf("TailDirection = %q, want %q", got.TailDirection, tt.wantTailDirection)
+			}
+		})
+	}
+}
