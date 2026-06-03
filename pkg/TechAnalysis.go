@@ -873,7 +873,7 @@ func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64,
 //
 // SlopeXxxValid is set true only when a lookback date was found; false means
 // insufficient history and the slope value of 0.0 is meaningless.
-func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) map[string]map[int64]SingleStockCandle {
+func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var dateKeys []int64
 		for dateKey := range stockPrices[ticker] {
@@ -887,13 +887,17 @@ func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug
 
 		for _, currentDate := range dateKeys {
 			stockCandle := stockPrices[ticker][currentDate]
-			currentClose := stockPrices[ticker][currentDate].Close
+			currentClose := stockCandle.Close
 
 			shortTarget := time.UnixMilli(currentDate).AddDate(0, 0, -SHORTDURATION).UnixMilli()
 			for _, pastDate := range dateKeys {
 				if pastDate <= shortTarget {
 					stockCandle.SlopeShortDuration = currentClose - stockPrices[ticker][pastDate].Close
 					stockCandle.SlopeShortValid = true
+					if isDebug {
+						fmt.Printf("ticker=%s date=%s shortSlope=%.4f\n",
+							ticker, time.UnixMilli(currentDate).Format(time.DateOnly), stockCandle.SlopeShortDuration)
+					}
 					break
 				}
 			}
@@ -903,6 +907,10 @@ func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug
 				if pastDate <= medTarget {
 					stockCandle.SlopeMedDuration = currentClose - stockPrices[ticker][pastDate].Close
 					stockCandle.SlopeMedValid = true
+					if isDebug {
+						fmt.Printf("ticker=%s date=%s medSlope=%.4f\n",
+							ticker, time.UnixMilli(currentDate).Format(time.DateOnly), stockCandle.SlopeMedDuration)
+					}
 					break
 				}
 			}
@@ -912,6 +920,10 @@ func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug
 				if pastDate <= longTarget {
 					stockCandle.SlopeLongDuration = currentClose - stockPrices[ticker][pastDate].Close
 					stockCandle.SlopeLongValid = true
+					if isDebug {
+						fmt.Printf("ticker=%s date=%s longSlope=%.4f\n",
+							ticker, time.UnixMilli(currentDate).Format(time.DateOnly), stockCandle.SlopeLongDuration)
+					}
 					break
 				}
 			}

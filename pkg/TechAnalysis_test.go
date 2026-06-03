@@ -71,6 +71,10 @@ func TestGetSimpleSlopes(t *testing.T) {
 		checkDate      int64
 		wantShortSlope float64
 		wantShortValid bool
+		wantMedSlope   float64
+		wantMedValid   bool
+		wantLongSlope  float64
+		wantLongValid  bool
 	}{
 		{
 			name:      "exact 30-day date exists — correct delta and valid=true",
@@ -84,6 +88,10 @@ func TestGetSimpleSlopes(t *testing.T) {
 			},
 			wantShortSlope: 10.0,
 			wantShortValid: true,
+			wantMedSlope:   0.0,
+			wantMedValid:   false,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
 		},
 		{
 			name:      "exact 30-day date missing — rolls back to nearest prior day",
@@ -97,6 +105,10 @@ func TestGetSimpleSlopes(t *testing.T) {
 			},
 			wantShortSlope: 15.0,
 			wantShortValid: true,
+			wantMedSlope:   0.0,
+			wantMedValid:   false,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
 		},
 		{
 			name:      "no data old enough for 30-day lookback — slope=0, valid=false",
@@ -110,6 +122,44 @@ func TestGetSimpleSlopes(t *testing.T) {
 			},
 			wantShortSlope: 0.0,
 			wantShortValid: false,
+			wantMedSlope:   0.0,
+			wantMedValid:   false,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
+		},
+		{
+			name:      "medium 90-day lookback found — slope and valid set",
+			ticker:    "AAPL",
+			checkDate: today.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					today.UnixMilli():                    {Ticker: "AAPL", Close: 100.0, Timestamp: today},
+					today.AddDate(0, 0, -95).UnixMilli(): {Ticker: "AAPL", Close: 70.0, Timestamp: today.AddDate(0, 0, -95)},
+				},
+			},
+			wantShortSlope: 30.0,
+			wantShortValid: true,
+			wantMedSlope:   30.0,
+			wantMedValid:   true,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
+		},
+		{
+			name:      "long 180-day lookback found — slope and valid set",
+			ticker:    "AAPL",
+			checkDate: today.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					today.UnixMilli():                     {Ticker: "AAPL", Close: 100.0, Timestamp: today},
+					today.AddDate(0, 0, -185).UnixMilli(): {Ticker: "AAPL", Close: 60.0, Timestamp: today.AddDate(0, 0, -185)},
+				},
+			},
+			wantShortSlope: 40.0,
+			wantShortValid: true,
+			wantMedSlope:   40.0,
+			wantMedValid:   true,
+			wantLongSlope:  40.0,
+			wantLongValid:  true,
 		},
 	}
 
@@ -122,6 +172,18 @@ func TestGetSimpleSlopes(t *testing.T) {
 			}
 			if got.SlopeShortValid != tt.wantShortValid {
 				t.Errorf("SlopeShortValid = %v, want %v", got.SlopeShortValid, tt.wantShortValid)
+			}
+			if got.SlopeMedDuration != tt.wantMedSlope {
+				t.Errorf("SlopeMedDuration = %v, want %v", got.SlopeMedDuration, tt.wantMedSlope)
+			}
+			if got.SlopeMedValid != tt.wantMedValid {
+				t.Errorf("SlopeMedValid = %v, want %v", got.SlopeMedValid, tt.wantMedValid)
+			}
+			if got.SlopeLongDuration != tt.wantLongSlope {
+				t.Errorf("SlopeLongDuration = %v, want %v", got.SlopeLongDuration, tt.wantLongSlope)
+			}
+			if got.SlopeLongValid != tt.wantLongValid {
+				t.Errorf("SlopeLongValid = %v, want %v", got.SlopeLongValid, tt.wantLongValid)
 			}
 		})
 	}
