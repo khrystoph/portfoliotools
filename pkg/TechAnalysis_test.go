@@ -286,6 +286,20 @@ func TestCalculateTrendDirections(t *testing.T) {
 			wantTailDirection:  "Indeterminate",
 		},
 		{
+			name:      "exactly 2 days in dataset — second day still Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day2.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(2.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+		{
 			name:      "valid=false on oldest of the three days → Indeterminate",
 			ticker:    "AAPL",
 			checkDate: day3.UnixMilli(),
@@ -308,7 +322,7 @@ func TestCalculateTrendDirections(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CalculateTrendDirections(tt.stockPrices)
+			result := CalculateTrendDirections(tt.stockPrices, false)
 			got := result[tt.ticker][tt.checkDate]
 			if got.TradeDirection != tt.wantTradeDirection {
 				t.Errorf("TradeDirection = %q, want %q", got.TradeDirection, tt.wantTradeDirection)

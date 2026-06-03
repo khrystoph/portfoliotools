@@ -940,7 +940,7 @@ func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug
 // mixed (Neutral), or unavailable (Indeterminate).
 //
 // Must be called after GetSimpleSlopes so that validity flags are set.
-func CalculateTrendDirections(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+func CalculateTrendDirections(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var dateKeys []int64
 		for dateKey := range stockPrices[ticker] {
@@ -976,6 +976,11 @@ func CalculateTrendDirections(stockPrices map[string]map[int64]SingleStockCandle
 					prev1.SlopeLongDuration, prev1.SlopeLongValid,
 					prev2.SlopeLongDuration, prev2.SlopeLongValid,
 				)
+				if isDebug {
+					fmt.Printf("ticker=%s date=%d tradeDir=%s trendDir=%s tailDir=%s\n",
+						ticker, currentDate,
+						stockCandle.TradeDirection, stockCandle.TrendDirection, stockCandle.TailDirection)
+				}
 			}
 			stockPrices[ticker][currentDate] = stockCandle
 		}
