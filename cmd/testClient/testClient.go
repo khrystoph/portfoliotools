@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -43,22 +44,22 @@ func main() {
 	// Section parses the config file location, opens it, decodes the JSON and loads the API creds
 	userDir, err = os.UserHomeDir()
 	if err != nil {
-		fmt.Errorf("error reading user's homedir: %w", err) //nolint:govet
+		log.Printf("error reading user's homedir: %v", err)
 	}
 	tickerConfig = strings.Replace(tickerConfig, "~", userDir, 1)
 	if _, err = os.Stat(tickerConfig); errors.Is(err, os.ErrNotExist) {
-		fmt.Errorf("error: config file %s does not exist. exiting", tickerConfig) //nolint:govet
+		log.Printf("error: config file %s does not exist. exiting", tickerConfig)
 	}
 	configFile, err := os.Open(tickerConfig)
 	if err != nil {
-		fmt.Errorf("error opening the config file. %w", err) //nolint:govet
+		log.Printf("error opening the config file: %v", err)
 	}
 	defer configFile.Close()
 	configDecoder := json.NewDecoder(configFile)
 	stockDataConfig := pkg.StockDataConf{}
 	err = configDecoder.Decode(&stockDataConfig)
 	if err != nil {
-		fmt.Errorf("error decoding the json config file. exiting. error msg: %w", err) //nolint:govet
+		log.Printf("error decoding the json config file: %v", err)
 	}
 
 	startTimeMilli, err := time.Parse(time.RFC3339, startTime)
@@ -71,13 +72,13 @@ func main() {
 		fmt.Printf("Unable to convert endTime to milliseconds.\n")
 		return
 	}
-	stockData, err := pkg.GetStockPricesAlpaca(stockDataConfig, ticker, resolution, startTimeMilli, endTimeMilli)
+	stockData, err := pkg.GetStockPricesAlpaca(stockDataConfig, ticker, resolution, startTimeMilli, endTimeMilli, false)
 	if err != nil {
-		fmt.Errorf("unable to retrieve stock data: %e", err)
+		log.Printf("unable to retrieve stock data: %v", err)
 	}
 	stockDataJSON, jsonErr := json.MarshalIndent(stockData, "", "  ")
 	if jsonErr != nil {
-		fmt.Errorf("unable to marshal JSON: %e", jsonErr)
+		log.Printf("unable to marshal JSON: %v", jsonErr)
 	}
 	fmt.Printf("%s\n", stockDataJSON)
 }

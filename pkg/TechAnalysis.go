@@ -42,7 +42,7 @@ func PrintData(stockPrices map[string]map[int64]SingleStockCandle, debug bool) {
 		jsonTickerData, err = json.MarshalIndent(condensedPrices, "", "  ")
 	}
 	if err != nil {
-		_ = fmt.Errorf("error marshalling data into JSON string")
+		log.Printf("error marshalling data into JSON string: %v", err)
 		os.Exit(1)
 	}
 	fmt.Printf("%v\n", string(jsonTickerData))
@@ -202,7 +202,6 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 	case "1T", "1H", "1D", "1W", "1M":
 		break
 	default:
-		fmt.Errorf("invalid resolution format")
 		err = errors.New("invalid time resolution format error")
 		return nil, err
 	}
@@ -224,7 +223,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Errorf("error retrieving historical stock bars: %e", err)
+		log.Printf("error retrieving historical stock bars: %v", err)
 	}
 
 	defer res.Body.Close()
@@ -232,7 +231,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		fmt.Errorf("error unmarshalling stock data: %e", err)
+		log.Printf("error unmarshalling stock data: %v", err)
 	}
 
 	stockPrices, ok := result["bars"].(map[string]any)
@@ -263,7 +262,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 		}
 		stockData, err = GetStockPrices(originalTicker, clientConfs.PolygonAPIToken, originalResolution, startTimeMilli, endTimeMilli)
 		if err != nil {
-			fmt.Errorf("error pulling stock data from polygon\n")
+			log.Printf("error pulling stock data from polygon: %v", err)
 			return nil, err
 		}
 	} else {
@@ -277,7 +276,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 				timeStamp := bar["t"].(string)
 				ts, tsErr := time.Parse(time.RFC3339, timeStamp)
 				if tsErr != nil {
-					fmt.Errorf("error converting timestamp to time: %w\n", tsErr)
+					log.Printf("error converting timestamp to time: %v", tsErr)
 				}
 				tsUnixMilli := ts.UnixMilli()
 				stockData[stockSymbol][tsUnixMilli] = SingleStockCandle{
@@ -782,7 +781,7 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				}
 				shortSlope, shortIntercept, err := calcLinearRegression(shortClosingPriceXValsSlice, shortClosingPriceYValsSlice)
 				if err != nil {
-					fmt.Errorf("error getting linear regression: %e", err)
+					log.Printf("error getting linear regression: %v", err)
 				}
 				if isDebug {
 					fmt.Printf("Date: %s", stockPrices[ticker][dateInt64].Timestamp)
@@ -806,7 +805,7 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				}
 				medSlope, medIntercept, err := calcLinearRegression(medClosingPriceXValsSlice, medClosingPriceYValsSlice)
 				if err != nil {
-					fmt.Errorf("error getting linear regression: %e", err)
+					log.Printf("error getting linear regression: %v", err)
 				}
 				if isDebug {
 					fmt.Printf("MedDuration linear regression intercept: %f\n", medIntercept)
@@ -827,7 +826,7 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				}
 				longSlope, longIntercept, err := calcLinearRegression(longClosingPriceXValsSlice, longClosingPriceYValsSlice)
 				if err != nil {
-					fmt.Errorf("error getting linear regression: %e", err)
+					log.Printf("error getting linear regression: %v", err)
 					return stockPrices
 				}
 				if isDebug {

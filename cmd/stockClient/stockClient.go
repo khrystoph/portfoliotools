@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -62,33 +63,33 @@ func main() {
 	// Section parses the config file location, opens it, decodes the JSON and loads the API creds
 	userDir, err = os.UserHomeDir()
 	if err != nil {
-		_ = fmt.Errorf("error reading user's homedir: %w", err)
+		log.Printf("error reading user's homedir: %v", err)
 	}
 	tickerConfig = strings.Replace(tickerConfig, "~", userDir, 1)
 	if _, err = os.Stat(tickerConfig); errors.Is(err, os.ErrNotExist) {
-		_ = fmt.Errorf("error: config file %s does not exist. exiting", tickerConfig)
+		log.Printf("error: config file %s does not exist. exiting", tickerConfig)
 	}
 	configFile, err := os.Open(tickerConfig)
 	if err != nil {
-		_ = fmt.Errorf("error opening the config file. %w", err)
+		log.Printf("error opening the config file: %v", err)
 	}
 	defer configFile.Close()
 	configDecoder := json.NewDecoder(configFile)
 	stockDataConfig := pkg.StockDataConf{}
 	err = configDecoder.Decode(&stockDataConfig)
 	if err != nil {
-		_ = fmt.Errorf("error decoding the json config file. exiting. error msg: %w", err)
+		log.Printf("error decoding the json config file: %v", err)
 		os.Exit(1)
 	}
 
 	startTimeMilli, err := time.Parse(time.RFC3339, startTime)
 	if err != nil {
-		_ = fmt.Errorf("Unable to convert startTime to milliseconds.\nstartTime: %s\n", startTime)
+		log.Printf("unable to convert startTime to milliseconds. startTime: %s", startTime)
 		os.Exit(1)
 	}
 	endTimeMilli, err := time.Parse(time.RFC3339, endTime)
 	if err != nil {
-		_ = fmt.Errorf("Unable to convert endTime to milliseconds.\n")
+		log.Printf("unable to convert endTime to milliseconds")
 		os.Exit(1)
 	}
 	// retrieve stock ticker's prices and store in a map
@@ -110,7 +111,7 @@ func main() {
 		}
 		tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, strings.ToUpper(ticker), resolution, startTimeMilli, endTimeMilli, debug)
 		if err != nil {
-			fmt.Errorf("unable to retrieve stock data: %e", err)
+			log.Printf("unable to retrieve stock data: %v", err)
 		}
 		if strings.HasPrefix(strings.ToUpper(ticker), "X:") {
 			ticker = strings.Split(ticker, ":")[1]
@@ -119,7 +120,7 @@ func main() {
 	} else {
 		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.PolygonAPIToken, resolution, startTimeMilli, endTimeMilli)
 		if err != nil {
-			fmt.Errorf("unable to get stock prices")
+			log.Printf("unable to get stock prices")
 		}
 	}
 
@@ -136,7 +137,7 @@ func main() {
 	//tickerData = pkg.GetLinearRegressionSlope(tickerData, debug)
 
 	if err != nil {
-		fmt.Errorf("error occurred: %w", err)
+		log.Printf("error occurred: %v", err)
 	}
 	pkg.PrintData(tickerData, debug)
 }

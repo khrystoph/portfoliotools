@@ -1,8 +1,8 @@
 package pkg
 
 type MinipoolStats struct {
-	effectivenessRate float64 `json:"effectiveness"`
-	minipoolSize      float64 `json:"minipoolsize"`
+	effectivenessRate float64
+	minipoolSize      float64
 }
 
 /*CalculateSmoothingPoolRewards estimates the rewards for the current rewards period (every 28 days) based on minipools

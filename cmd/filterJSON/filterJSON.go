@@ -4,7 +4,6 @@ import (
 	"cmd/pkg"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -28,7 +27,7 @@ func main() {
 	flag.Parse()
 	userDir, err := os.UserHomeDir()
 	if err != nil {
-		_ = fmt.Errorf("error reading user's homedir: %w", err)
+		log.Printf("error reading user's homedir: %v", err)
 	}
 	userDir = strings.Replace(userDir, "~", userDir, 1)
 	readFile, err := os.ReadFile(inFile)
