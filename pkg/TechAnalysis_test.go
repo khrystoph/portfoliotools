@@ -318,6 +318,44 @@ func TestCalculateTrendDirections(t *testing.T) {
 			wantTrendDirection: "Indeterminate",
 			wantTailDirection:  "Indeterminate",
 		},
+		{
+			name:      "valid=false on middle day → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): {
+						SlopeShortDuration: 2.0, SlopeShortValid: false,
+						SlopeMedDuration: 2.0, SlopeMedValid: false,
+						SlopeLongDuration: 2.0, SlopeLongValid: false,
+					},
+					day3.UnixMilli(): allValid(3.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+		{
+			name:      "valid=false on current day → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(2.0),
+					day3.UnixMilli(): {
+						SlopeShortDuration: 3.0, SlopeShortValid: false,
+						SlopeMedDuration: 3.0, SlopeMedValid: false,
+						SlopeLongDuration: 3.0, SlopeLongValid: false,
+					},
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
 	}
 
 	for _, tt := range tests {
