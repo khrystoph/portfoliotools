@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	polygon "github.com/polygon-io/client-go/rest"
 	"github.com/polygon-io/client-go/rest/models"
 	gonum "gonum.org/v1/gonum/stat"
@@ -42,7 +41,7 @@ func PrintData(stockPrices map[string]map[int64]SingleStockCandle, debug bool) {
 		jsonTickerData, err = json.MarshalIndent(condensedPrices, "", "  ")
 	}
 	if err != nil {
-		_ = fmt.Errorf("error marshalling data into JSON string")
+		log.Printf("error marshalling data into JSON string: %v", err)
 		os.Exit(1)
 	}
 	fmt.Printf("%v\n", string(jsonTickerData))
@@ -165,22 +164,6 @@ func GetTargetAnnualReturn(costBasis, riskFreeRate float64, purchaseDate time.Ti
 	return targetAnnualReturnPrice, nil
 }
 
-func createAlpacaClient(APIKey, APISecretKey string, live bool) (client *alpaca.Client) {
-	if live {
-		return alpaca.NewClient(alpaca.ClientOpts{
-			APIKey:    APIKey,
-			APISecret: APISecretKey,
-			BaseURL:   ALPACA_LIVE_API,
-		})
-	} else {
-		return alpaca.NewClient(alpaca.ClientOpts{
-			APIKey:    APIKey,
-			APISecret: APISecretKey,
-			BaseURL:   ALPACA_PAPER_API,
-		})
-	}
-}
-
 // GetStockPricesAlpaca retrieves stock prices using Alpaca's stock API. It does NOT gather crypto data using the stock
 // api, which is counter to polygon's behavior.
 func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, startTimeMilli,
@@ -202,7 +185,6 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 	case "1T", "1H", "1D", "1W", "1M":
 		break
 	default:
-		fmt.Errorf("invalid resolution format")
 		err = errors.New("invalid time resolution format error")
 		return nil, err
 	}
@@ -224,7 +206,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Errorf("error retrieving historical stock bars: %e", err)
+		log.Printf("error retrieving historical stock bars: %v", err)
 	}
 
 	defer res.Body.Close()
@@ -232,7 +214,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		fmt.Errorf("error unmarshalling stock data: %e", err)
+		log.Printf("error unmarshalling stock data: %v", err)
 	}
 
 	stockPrices, ok := result["bars"].(map[string]any)
@@ -263,7 +245,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 		}
 		stockData, err = GetStockPrices(originalTicker, clientConfs.PolygonAPIToken, originalResolution, startTimeMilli, endTimeMilli)
 		if err != nil {
-			fmt.Errorf("error pulling stock data from polygon\n")
+			log.Printf("error pulling stock data from polygon: %v", err)
 			return nil, err
 		}
 	} else {
@@ -277,7 +259,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 				timeStamp := bar["t"].(string)
 				ts, tsErr := time.Parse(time.RFC3339, timeStamp)
 				if tsErr != nil {
-					fmt.Errorf("error converting timestamp to time: %w\n", tsErr)
+					log.Printf("error converting timestamp to time: %v", tsErr)
 				}
 				tsUnixMilli := ts.UnixMilli()
 				stockData[stockSymbol][tsUnixMilli] = SingleStockCandle{
@@ -367,15 +349,6 @@ func calculateVariance(returns []float64) float64 {
 }
 
 // calculateMean calculates the arithmetic mean of a float64 slice of inputs and returns the resulting mean
-func calculateMean(returns []float64) float64 {
-	var sum float64
-
-	for _, r := range returns {
-		sum += r
-	}
-
-	return sum / float64(len(returns))
-}
 
 /*
 RealizedVolatility calculates the volatility of prices on varying timelines. It's used to calculate the volatility
@@ -782,7 +755,7 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				}
 				shortSlope, shortIntercept, err := calcLinearRegression(shortClosingPriceXValsSlice, shortClosingPriceYValsSlice)
 				if err != nil {
-					fmt.Errorf("error getting linear regression: %e", err)
+					log.Printf("error getting linear regression: %v", err)
 				}
 				if isDebug {
 					fmt.Printf("Date: %s", stockPrices[ticker][dateInt64].Timestamp)
@@ -806,7 +779,7 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				}
 				medSlope, medIntercept, err := calcLinearRegression(medClosingPriceXValsSlice, medClosingPriceYValsSlice)
 				if err != nil {
-					fmt.Errorf("error getting linear regression: %e", err)
+					log.Printf("error getting linear regression: %v", err)
 				}
 				if isDebug {
 					fmt.Printf("MedDuration linear regression intercept: %f\n", medIntercept)
@@ -827,7 +800,7 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				}
 				longSlope, longIntercept, err := calcLinearRegression(longClosingPriceXValsSlice, longClosingPriceYValsSlice)
 				if err != nil {
-					fmt.Errorf("error getting linear regression: %e", err)
+					log.Printf("error getting linear regression: %v", err)
 					return stockPrices
 				}
 				if isDebug {
@@ -872,7 +845,8 @@ func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64,
 // GetSimpleSlopes computes the raw price delta for each duration per day.
 // For each day it looks back N calendar days, rolling back one day at a time
 // until finding a trading day at or before the target, then computes:
-//   slope = close_today - close_at_lookback_date
+//
+//	slope = close_today - close_at_lookback_date
 //
 // SlopeXxxValid is set true only when a lookback date was found; false means
 // insufficient history and the slope value of 0.0 is meaningless.

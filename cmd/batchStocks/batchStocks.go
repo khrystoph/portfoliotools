@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -52,7 +51,7 @@ func init() {
 func main() {
 	flag.Parse()
 	var (
-		tickerData          = make(map[string]map[int64]pkg.SingleStockCandle)
+		tickerData          map[string]map[int64]pkg.SingleStockCandle
 		tickerBatch         = make(map[string]map[int64]pkg.SingleStockCandle)
 		batchStockRanges    = make(map[string]pkg.CondensedRangesJSON)
 		tickerArray         = make([]string, 0)
@@ -63,23 +62,23 @@ func main() {
 	// Section parses the config file location, opens it, decodes the JSON and loads the API creds
 	userDir, err = os.UserHomeDir()
 	if err != nil {
-		_ = fmt.Errorf("error reading user's homedir: %w", err)
+		log.Printf("error reading user's homedir: %v", err)
 	}
 	tickerConfig = strings.Replace(tickerConfig, "~", userDir, 1)
 	if _, err = os.Stat(tickerConfig); errors.Is(err, os.ErrNotExist) {
-		_ = fmt.Errorf("error: config file %s does not exist. exiting", tickerConfig)
+		log.Printf("error: config file %s does not exist. exiting", tickerConfig)
 	}
 
 	configFile, err := os.Open(tickerConfig)
-	defer configFile.Close()
 	if err != nil {
-		_ = fmt.Errorf("error opening the config file. %w", err)
+		log.Printf("error opening the config file: %v", err)
 	}
+	defer configFile.Close()
 	configDecoder := json.NewDecoder(configFile)
 	stockDataConfig := pkg.StockDataConf{}
 	err = configDecoder.Decode(&stockDataConfig)
 	if err != nil {
-		_ = fmt.Errorf("error decoding the json config file. exiting. error msg: %w", err)
+		log.Printf("error decoding the json config file: %v", err)
 		os.Exit(1)
 	}
 
@@ -105,9 +104,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		for _, ticker := range row {
-			tickerArray = append(tickerArray, ticker)
-		}
+		tickerArray = append(tickerArray, row...)
 	}
 
 	for _, tickerItem := range tickerArray {
@@ -138,7 +135,7 @@ func main() {
 		} else {
 			tickerData, err = pkg.GetStockPrices(strings.ToUpper(tickerItem), stockDataConfig.PolygonAPIToken, resolution, startDateMilli, endDate)
 			if err != nil {
-				_ = fmt.Errorf("unable to get stock prices")
+				log.Printf("unable to get stock prices for %s", strings.ToUpper(tickerItem))
 			}
 		}
 
@@ -166,7 +163,7 @@ func main() {
 		for ticker, stock := range tickerData {
 			latestDate := int64(0)
 			var rrHigh, rrLow, rvolpct, avgvolratio float64
-			for date, _ := range tickerData[ticker] {
+			for date := range tickerData[ticker] {
 				// Looking for the "max" date to get the most recent datetime
 				if date > latestDate {
 					latestDate = date
@@ -244,5 +241,4 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	return
 }

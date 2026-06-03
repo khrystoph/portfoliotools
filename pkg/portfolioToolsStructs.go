@@ -46,37 +46,37 @@ type HistoricalBar struct {
 }
 
 type SingleStockCandle struct {
-	Ticker                string             `json:"ticker"`
-	Close                 float64            `json:"close"`
-	High                  float64            `json:"high"`
-	Low                   float64            `json:"low"`
-	Open                  float64            `json:"open"`
-	Transactions          int64              `json:"transactions"`
-	Timestamp             time.Time          `json:"timestamp"`
-	Volume                float64            `json:"volume"`
-	WeightedVolume        float64            `json:"weighted-volume"`
-	PriceVelocity         float64            `json:"price-velocity"`
-	PriceAccel            float64            `json:"price-acceleration"`
-	AvgVolume30           float64            `json:"avg-volume-30"`
-	AvgVolume60           float64            `json:"avg-volume-60"`
-	AvgVolume90           float64            `json:"avg-volume-90"`
-	AvgVolumeRatio30      float64            `json:"avg-volume-ratio-30"`
-	AvgVolumeRatio60      float64            `json:"avg-volume-ratio-60"`
-	AvgVolumeRatio90      float64            `json:"avg-volume-ratio-90"`
-	ThirtyDaysPrices      map[string]float64 `json:"30-days-prices"`
-	SixtyDaysPrices       map[string]float64 `json:"60-days-prices"`
-	NinetyDaysPrices      map[string]float64 `json:"90-days-prices"`
-	SlopeShortDuration    float64            `json:"trade-slope"`
-	SlopeMedDuration      float64            `json:"trend-slope"`
-	SlopeLongDuration     float64            `json:"tail-slope"`
+	Ticker             string             `json:"ticker"`
+	Close              float64            `json:"close"`
+	High               float64            `json:"high"`
+	Low                float64            `json:"low"`
+	Open               float64            `json:"open"`
+	Transactions       int64              `json:"transactions"`
+	Timestamp          time.Time          `json:"timestamp"`
+	Volume             float64            `json:"volume"`
+	WeightedVolume     float64            `json:"weighted-volume"`
+	PriceVelocity      float64            `json:"price-velocity"`
+	PriceAccel         float64            `json:"price-acceleration"`
+	AvgVolume30        float64            `json:"avg-volume-30"`
+	AvgVolume60        float64            `json:"avg-volume-60"`
+	AvgVolume90        float64            `json:"avg-volume-90"`
+	AvgVolumeRatio30   float64            `json:"avg-volume-ratio-30"`
+	AvgVolumeRatio60   float64            `json:"avg-volume-ratio-60"`
+	AvgVolumeRatio90   float64            `json:"avg-volume-ratio-90"`
+	ThirtyDaysPrices   map[string]float64 `json:"30-days-prices"`
+	SixtyDaysPrices    map[string]float64 `json:"60-days-prices"`
+	NinetyDaysPrices   map[string]float64 `json:"90-days-prices"`
+	SlopeShortDuration float64            `json:"trade-slope"`
+	SlopeMedDuration   float64            `json:"trend-slope"`
+	SlopeLongDuration  float64            `json:"tail-slope"`
 	// slope validity flags — json:"-" keeps them out of JSON output
 	SlopeShortValid bool `json:"-"`
 	SlopeMedValid   bool `json:"-"`
 	SlopeLongValid  bool `json:"-"`
 	// direction labels computed from 3-day slope sign check
-	TradeDirection string `json:"trade-direction"`
-	TrendDirection string `json:"trend-direction"`
-	TailDirection  string `json:"tail-direction"`
+	TradeDirection        string             `json:"trade-direction"`
+	TrendDirection        string             `json:"trend-direction"`
+	TailDirection         string             `json:"tail-direction"`
 	RVolHigh30            float64            `json:"30-day-rvol-high"`
 	RVolLow30             float64            `json:"30-day-rvol-low"`
 	RVolHigh60            float64            `json:"60-day-rvol-high"`

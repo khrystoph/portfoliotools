@@ -44,6 +44,7 @@ release:
 	tar czvf bin/portfoliotools.linux-arm64.tar.gz bin/currentreturn-linux-arm64 bin/stockclient-linux-arm64 bin/targetreturn-linux-arm64
 
 test:
+	go vet ./...
 	go test -v ./pkg/
 
 clean:
