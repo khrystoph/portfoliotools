@@ -1,6 +1,8 @@
 STOCK_BINARY=stockclient
 TGTRETURN_BINARY=targetreturn
 CURRETURNS_BINARY=currentreturn
+BATCH_STOCKS=stockbatch
+FILTER_JSON=filterjson
 
 all: build test
 
@@ -8,6 +10,8 @@ build:
 	go build -o ./bin/${STOCK_BINARY} ./cmd/stockClient/stockClient.go
 	go build -o ./bin/${TGTRETURN_BINARY} ./cmd/targetReturn/targetAnnualizedReturn.go
 	go build -o ./bin/${CURRETURNS_BINARY} ./cmd/currentReturn/currentAnnualizedReturn.go
+	go build -o ./bin/${BATCH_STOCKS} ./cmd/batchStocks/batchStocks.go
+	go build -o ./bin/${FILTER_JSON} ./cmd/filterJSON/filterJSON.go
 
 release:
 	# Build Stock Client

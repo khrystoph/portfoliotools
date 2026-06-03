@@ -3,6 +3,7 @@ package pkg
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestRealizedVolatility(t *testing.T) {
@@ -52,6 +53,323 @@ func TestCalculateDailyReturn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := calculateDailyReturn(tt.args.prices); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("calculateDailyReturn() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetSimpleSlopes(t *testing.T) {
+	today := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
+	thirtyDaysAgo := today.AddDate(0, 0, -30)    // exact target for SHORT
+	thirtyTwoDaysAgo := today.AddDate(0, 0, -32) // nearest prior when exact missing
+	tenDaysAgo := today.AddDate(0, 0, -10)       // too recent for 30-day lookback
+
+	tests := []struct {
+		name           string
+		stockPrices    map[string]map[int64]SingleStockCandle
+		ticker         string
+		checkDate      int64
+		wantShortSlope float64
+		wantShortValid bool
+		wantMedSlope   float64
+		wantMedValid   bool
+		wantLongSlope  float64
+		wantLongValid  bool
+	}{
+		{
+			name:      "exact 30-day date exists — correct delta and valid=true",
+			ticker:    "AAPL",
+			checkDate: today.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					today.UnixMilli():         {Ticker: "AAPL", Close: 100.0, Timestamp: today},
+					thirtyDaysAgo.UnixMilli(): {Ticker: "AAPL", Close: 90.0, Timestamp: thirtyDaysAgo},
+				},
+			},
+			wantShortSlope: 10.0,
+			wantShortValid: true,
+			wantMedSlope:   0.0,
+			wantMedValid:   false,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
+		},
+		{
+			name:      "exact 30-day date missing — rolls back to nearest prior day",
+			ticker:    "AAPL",
+			checkDate: today.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					today.UnixMilli():            {Ticker: "AAPL", Close: 100.0, Timestamp: today},
+					thirtyTwoDaysAgo.UnixMilli(): {Ticker: "AAPL", Close: 85.0, Timestamp: thirtyTwoDaysAgo},
+				},
+			},
+			wantShortSlope: 15.0,
+			wantShortValid: true,
+			wantMedSlope:   0.0,
+			wantMedValid:   false,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
+		},
+		{
+			name:      "no data old enough for 30-day lookback — slope=0, valid=false",
+			ticker:    "AAPL",
+			checkDate: today.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					today.UnixMilli():      {Ticker: "AAPL", Close: 100.0, Timestamp: today},
+					tenDaysAgo.UnixMilli(): {Ticker: "AAPL", Close: 95.0, Timestamp: tenDaysAgo},
+				},
+			},
+			wantShortSlope: 0.0,
+			wantShortValid: false,
+			wantMedSlope:   0.0,
+			wantMedValid:   false,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
+		},
+		{
+			name:      "medium 90-day lookback found — slope and valid set",
+			ticker:    "AAPL",
+			checkDate: today.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					today.UnixMilli():                    {Ticker: "AAPL", Close: 100.0, Timestamp: today},
+					today.AddDate(0, 0, -95).UnixMilli(): {Ticker: "AAPL", Close: 70.0, Timestamp: today.AddDate(0, 0, -95)},
+				},
+			},
+			wantShortSlope: 30.0,
+			wantShortValid: true,
+			wantMedSlope:   30.0,
+			wantMedValid:   true,
+			wantLongSlope:  0.0,
+			wantLongValid:  false,
+		},
+		{
+			name:      "long 180-day lookback found — slope and valid set",
+			ticker:    "AAPL",
+			checkDate: today.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					today.UnixMilli():                     {Ticker: "AAPL", Close: 100.0, Timestamp: today},
+					today.AddDate(0, 0, -185).UnixMilli(): {Ticker: "AAPL", Close: 60.0, Timestamp: today.AddDate(0, 0, -185)},
+				},
+			},
+			wantShortSlope: 40.0,
+			wantShortValid: true,
+			wantMedSlope:   40.0,
+			wantMedValid:   true,
+			wantLongSlope:  40.0,
+			wantLongValid:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetSimpleSlopes(tt.stockPrices, false)
+			got := result[tt.ticker][tt.checkDate]
+			if got.SlopeShortDuration != tt.wantShortSlope {
+				t.Errorf("SlopeShortDuration = %v, want %v", got.SlopeShortDuration, tt.wantShortSlope)
+			}
+			if got.SlopeShortValid != tt.wantShortValid {
+				t.Errorf("SlopeShortValid = %v, want %v", got.SlopeShortValid, tt.wantShortValid)
+			}
+			if got.SlopeMedDuration != tt.wantMedSlope {
+				t.Errorf("SlopeMedDuration = %v, want %v", got.SlopeMedDuration, tt.wantMedSlope)
+			}
+			if got.SlopeMedValid != tt.wantMedValid {
+				t.Errorf("SlopeMedValid = %v, want %v", got.SlopeMedValid, tt.wantMedValid)
+			}
+			if got.SlopeLongDuration != tt.wantLongSlope {
+				t.Errorf("SlopeLongDuration = %v, want %v", got.SlopeLongDuration, tt.wantLongSlope)
+			}
+			if got.SlopeLongValid != tt.wantLongValid {
+				t.Errorf("SlopeLongValid = %v, want %v", got.SlopeLongValid, tt.wantLongValid)
+			}
+		})
+	}
+}
+
+func TestCalculateTrendDirections(t *testing.T) {
+	day1 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	day2 := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
+	day3 := time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC)
+
+	// allValid builds a candle with all three slopes valid and set to the given value.
+	allValid := func(slope float64) SingleStockCandle {
+		return SingleStockCandle{
+			SlopeShortDuration: slope, SlopeShortValid: true,
+			SlopeMedDuration: slope, SlopeMedValid: true,
+			SlopeLongDuration: slope, SlopeLongValid: true,
+		}
+	}
+
+	tests := []struct {
+		name               string
+		stockPrices        map[string]map[int64]SingleStockCandle
+		ticker             string
+		checkDate          int64
+		wantTradeDirection string
+		wantTrendDirection string
+		wantTailDirection  string
+	}{
+		{
+			name:      "all three slopes positive → Bullish",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(2.0),
+					day3.UnixMilli(): allValid(3.0),
+				},
+			},
+			wantTradeDirection: "Bullish",
+			wantTrendDirection: "Bullish",
+			wantTailDirection:  "Bullish",
+		},
+		{
+			name:      "all three slopes negative → Bearish",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(-1.0),
+					day2.UnixMilli(): allValid(-2.0),
+					day3.UnixMilli(): allValid(-3.0),
+				},
+			},
+			wantTradeDirection: "Bearish",
+			wantTrendDirection: "Bearish",
+			wantTailDirection:  "Bearish",
+		},
+		{
+			name:      "mixed slopes → Neutral",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(-1.0),
+					day3.UnixMilli(): allValid(1.0),
+				},
+			},
+			wantTradeDirection: "Neutral",
+			wantTrendDirection: "Neutral",
+			wantTailDirection:  "Neutral",
+		},
+		{
+			name:      "slope exactly 0.0 with valid=true → Neutral, not Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(0.0),
+					day2.UnixMilli(): allValid(0.0),
+					day3.UnixMilli(): allValid(0.0),
+				},
+			},
+			wantTradeDirection: "Neutral",
+			wantTrendDirection: "Neutral",
+			wantTailDirection:  "Neutral",
+		},
+		{
+			name:      "fewer than 3 days in dataset → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day1.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+		{
+			name:      "exactly 2 days in dataset — second day still Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day2.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(2.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+		{
+			name:      "valid=false on oldest of the three days → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): {
+						SlopeShortDuration: 1.0, SlopeShortValid: false,
+						SlopeMedDuration: 1.0, SlopeMedValid: false,
+						SlopeLongDuration: 1.0, SlopeLongValid: false,
+					},
+					day2.UnixMilli(): allValid(2.0),
+					day3.UnixMilli(): allValid(3.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+		{
+			name:      "valid=false on middle day → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): {
+						SlopeShortDuration: 2.0, SlopeShortValid: false,
+						SlopeMedDuration: 2.0, SlopeMedValid: false,
+						SlopeLongDuration: 2.0, SlopeLongValid: false,
+					},
+					day3.UnixMilli(): allValid(3.0),
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+		{
+			name:      "valid=false on current day → Indeterminate",
+			ticker:    "AAPL",
+			checkDate: day3.UnixMilli(),
+			stockPrices: map[string]map[int64]SingleStockCandle{
+				"AAPL": {
+					day1.UnixMilli(): allValid(1.0),
+					day2.UnixMilli(): allValid(2.0),
+					day3.UnixMilli(): {
+						SlopeShortDuration: 3.0, SlopeShortValid: false,
+						SlopeMedDuration: 3.0, SlopeMedValid: false,
+						SlopeLongDuration: 3.0, SlopeLongValid: false,
+					},
+				},
+			},
+			wantTradeDirection: "Indeterminate",
+			wantTrendDirection: "Indeterminate",
+			wantTailDirection:  "Indeterminate",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateTrendDirections(tt.stockPrices, false)
+			got := result[tt.ticker][tt.checkDate]
+			if got.TradeDirection != tt.wantTradeDirection {
+				t.Errorf("TradeDirection = %q, want %q", got.TradeDirection, tt.wantTradeDirection)
+			}
+			if got.TrendDirection != tt.wantTrendDirection {
+				t.Errorf("TrendDirection = %q, want %q", got.TrendDirection, tt.wantTrendDirection)
+			}
+			if got.TailDirection != tt.wantTailDirection {
+				t.Errorf("TailDirection = %q, want %q", got.TailDirection, tt.wantTailDirection)
 			}
 		})
 	}

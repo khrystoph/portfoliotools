@@ -2,13 +2,18 @@ package pkg
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	polygon "github.com/polygon-io/client-go/rest"
 	"github.com/polygon-io/client-go/rest/models"
 	gonum "gonum.org/v1/gonum/stat"
+	"io"
 	"log"
 	"math"
+	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -16,62 +21,94 @@ import (
 
 const DAY = 24
 const YEAR = 365.24
-const LONGDURATION = 90
-const MEDIUMDURATION = 60
+const LONGDURATION = 180
+const MEDIUMDURATION = 90
 const SHORTDURATION = 30
 const TRADINGDAYSPERYEAR = 252
+const ALPACA_PAPER_API = "https://paper-api.alpaca.markets"
+const ALPACA_LIVE_API = "https://api.alpaca.markets"
 
-// OHLC is a struct that contains the Open, High, Low, and Close values from a range of times for a specific ticker
-type OHLC struct {
-	Close            []float64 `json:"c"`
-	High             []float64 `json:"h"`
-	Low              []float64 `json:"l"`
-	Status           string    `json:"s"`
-	Timestamp        []int64   `json:"t"`
-	TransactionCount []int64   `json:"n"`
-	Volume           []int64   `json:"v"`
+func PrintData(stockPrices map[string]map[int64]SingleStockCandle, debug bool) {
+	var jsonTickerData []byte
+	var err error
+
+	// Prepare the condensed data
+	condensedPrices := PrepareToPrintData(stockPrices)
+
+	// Print the data
+	if debug {
+		jsonTickerData, err = json.MarshalIndent(stockPrices, "", "  ")
+	} else {
+		jsonTickerData, err = json.MarshalIndent(condensedPrices, "", "  ")
+	}
+	if err != nil {
+		_ = fmt.Errorf("error marshalling data into JSON string")
+		os.Exit(1)
+	}
+	fmt.Printf("%v\n", string(jsonTickerData))
 }
 
-type SingleStockCandle struct {
-	Ticker                string             `json:"ticker"`
-	Close                 float64            `json:"close"`
-	High                  float64            `json:"high"`
-	Low                   float64            `json:"low"`
-	Open                  float64            `json:"open"`
-	Transactions          int64              `json:"transactions"`
-	Timestamp             time.Time          `json:"timestamp"`
-	Volume                float64            `json:"volume"`
-	WeightedVolume        float64            `json:"weighted-volume"`
-	AvgVolume30           float64            `json:"avg-volume-30"`
-	AvgVolume60           float64            `json:"avg-volume-60"`
-	AvgVolume90           float64            `json:"avg-volume-90"`
-	AvgVolumeRatio30      float64            `json:"avg-volume-ratio-30"`
-	AvgVolumeRatio60      float64            `json:"avg-volume-ratio-60"`
-	AvgVolumeRatio90      float64            `json:"avg-volume-ratio-90"`
-	ThirtyDaysPrices      map[string]float64 `json:"30-days-prices"`
-	SixtyDaysPrices       map[string]float64 `json:"60-days-prices"`
-	NinetyDaysPrices      map[string]float64 `json:"90-days-prices"`
-	RealizedVolatility30  float64            `json:"30-day-realized-volatility"`
-	RealizedVolatility60  float64            `json:"60-day-realized-volatility"`
-	RealizedVolatility90  float64            `json:"90-day-realized-volatility"`
-	VelocityRealizedVol30 float64            `json:"30-day-realized-volatility-velocity"`
-	VelocityRealizedVol60 float64            `json:"60-day-realized-volatility-velocity"`
-	VelocityRealizedVol90 float64            `json:"90-day-realized-volatility-velocity"`
-	RealizedVolAccel30    float64            `json:"30-day-realized-volatility-accel"`
-	RealizedVolAccel60    float64            `json:"60-day-realized-volatility-accel"`
-	RealizedVolAccel90    float64            `json:"90-day-realized-volatility-accel"`
-	TradeRange            map[string]float64 `json:"trade-range"`
-	TrendRange            map[string]float64 `json:"trend-range"`
-	TailRange             map[string]float64 `json:"tail-range"`
-	TradeRangeAdj         map[string]float64 `json:"trade-range-vadj"`
-	TrendRangeAdj         map[string]float64 `json:"trend-range-vadj"`
-	TailRangeAdj          map[string]float64 `json:"tail-range-vadj"`
-	PTradeRange           map[string]float64 `json:"prob-adj-trade-range"`
-	PTrendRange           map[string]float64 `json:"prob-adj-trend-range"`
-	PTailRange            map[string]float64 `json:"prob-adj-tail-range"`
-	PTradeRangeAdj        map[string]float64 `json:"prob-trade-range-vadj"`
-	PTrendRangeAdj        map[string]float64 `json:"prob-trend-range-vadj"`
-	PTailRangeAdj         map[string]float64 `json:"prob-tail-range-vadj"`
+func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (condensedPrices map[string]map[int64]condensedStockCandle) {
+	condensedPrices = map[string]map[int64]condensedStockCandle{}
+
+	// prepare the condensed data
+	for ticker := range stockPrices {
+		if _, ok := condensedPrices[ticker]; !ok {
+			condensedPrices[ticker] = make(map[int64]condensedStockCandle)
+		}
+		for dateInt64 := range stockPrices[ticker] {
+			condensedPrices[ticker][dateInt64] = condensedStockCandle{
+				// Base data from pulling stock candles from data provider
+				Ticker:            stockPrices[ticker][dateInt64].Ticker,
+				Close:             stockPrices[ticker][dateInt64].Close,
+				Volume:            stockPrices[ticker][dateInt64].Volume,
+				PriceVelocity:     stockPrices[ticker][dateInt64].PriceVelocity,
+				PriceAcceleration: stockPrices[ticker][dateInt64].PriceAccel,
+
+				Timestamp: stockPrices[ticker][dateInt64].Timestamp,
+				// short duration
+				AvgVolumeShort:      stockPrices[ticker][dateInt64].AvgVolume30,
+				AvgVolumeRatioShort: stockPrices[ticker][dateInt64].AvgVolumeRatio30,
+				TradeSlope:          stockPrices[ticker][dateInt64].SlopeShortDuration,
+				RVolShort:           stockPrices[ticker][dateInt64].RealizedVolatility30,
+				RVolShortVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol30,
+				RVolShortAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel30,
+				RVolPercentShort:    stockPrices[ticker][dateInt64].RVolPercent30,
+				RVolHighShort:       stockPrices[ticker][dateInt64].RVolHigh30,
+				RVolLowShort:        stockPrices[ticker][dateInt64].RVolLow30,
+				TradeRangeAdj:       stockPrices[ticker][dateInt64].TradeRangeAdj,
+				PtradeRangeAdj:      stockPrices[ticker][dateInt64].PTradeRangeAdj,
+				// medium duration
+				AvgVolumeMed:      stockPrices[ticker][dateInt64].AvgVolume60,
+				AvgVolumeRatioMed: stockPrices[ticker][dateInt64].AvgVolumeRatio60,
+				TrendSlope:        stockPrices[ticker][dateInt64].SlopeMedDuration,
+				RVolMed:           stockPrices[ticker][dateInt64].RealizedVolatility60,
+				RVolMedVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol60,
+				RVolMedAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel60,
+				RVolPercentMed:    stockPrices[ticker][dateInt64].RVolPercent60,
+				RVolHighMed:       stockPrices[ticker][dateInt64].RVolHigh60,
+				RVolLowMed:        stockPrices[ticker][dateInt64].RVolLow60,
+				TrendRangeAdj:     stockPrices[ticker][dateInt64].TrendRangeAdj,
+				PTrendRangeAdj:    stockPrices[ticker][dateInt64].PTrendRangeAdj,
+				// long duration
+				AvgVolumeLong:      stockPrices[ticker][dateInt64].AvgVolume90,
+				AvgVolumeRatioLong: stockPrices[ticker][dateInt64].AvgVolumeRatio90,
+				TailSlope:          stockPrices[ticker][dateInt64].SlopeLongDuration,
+				RVolLong:           stockPrices[ticker][dateInt64].RealizedVolatility90,
+				RVolLongVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol90,
+				RVolLongAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel90,
+				RVolPercentLong:    stockPrices[ticker][dateInt64].RVolPercent90,
+				RVolHighLong:       stockPrices[ticker][dateInt64].RVolHigh90,
+				RVolLowLong:        stockPrices[ticker][dateInt64].RVolLow90,
+				TailRangeAdj:       stockPrices[ticker][dateInt64].TailRangeAdj,
+				PTailRangeAdj:      stockPrices[ticker][dateInt64].PTailRangeAdj,
+				TradeDirection:     stockPrices[ticker][dateInt64].TradeDirection,
+				TrendDirection:     stockPrices[ticker][dateInt64].TrendDirection,
+				TailDirection:      stockPrices[ticker][dateInt64].TailDirection,
+			}
+		}
+	}
+	return condensedPrices
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -128,6 +165,138 @@ func GetTargetAnnualReturn(costBasis, riskFreeRate float64, purchaseDate time.Ti
 	return targetAnnualReturnPrice, nil
 }
 
+func createAlpacaClient(APIKey, APISecretKey string, live bool) (client *alpaca.Client) {
+	if live {
+		return alpaca.NewClient(alpaca.ClientOpts{
+			APIKey:    APIKey,
+			APISecret: APISecretKey,
+			BaseURL:   ALPACA_LIVE_API,
+		})
+	} else {
+		return alpaca.NewClient(alpaca.ClientOpts{
+			APIKey:    APIKey,
+			APISecret: APISecretKey,
+			BaseURL:   ALPACA_PAPER_API,
+		})
+	}
+}
+
+// GetStockPricesAlpaca retrieves stock prices using Alpaca's stock API. It does NOT gather crypto data using the stock
+// api, which is counter to polygon's behavior.
+func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, startTimeMilli,
+	endTimeMilli time.Time, isDebug bool) (stockData map[string]map[int64]SingleStockCandle, err error) {
+	var (
+		result             map[string]any
+		url                string
+		feed               = "sip"
+		originalTicker     = ticker
+		originalResolution = resolution
+	)
+	if endTimeMilli.Format(time.DateOnly) == time.Now().Format(time.DateOnly) && !strings.HasPrefix(ticker, "X:") {
+		endTimeMilli = endTimeMilli.AddDate(0, 0, -1)
+	}
+	var startTime = startTimeMilli.Format(time.DateOnly)
+	var endTime = endTimeMilli.Format(time.DateOnly)
+	stockData = map[string]map[int64]SingleStockCandle{}
+	switch resolution {
+	case "1T", "1H", "1D", "1W", "1M":
+		break
+	default:
+		fmt.Errorf("invalid resolution format")
+		err = errors.New("invalid time resolution format error")
+		return nil, err
+	}
+	//TODO: implement logic to ascertain if the lookup is for crypto or stocks.
+	if strings.HasPrefix(ticker, "X:") {
+		ticker = strings.Split(ticker, ":")[1]
+		cryptoTicker := strings.Replace(ticker, "/", "%2F", 1)
+		fmt.Printf("Adjusted ticker is: %s\n", cryptoTicker)
+		url = "https://data.alpaca.markets/v1beta3/crypto/us/bars?symbols=" + cryptoTicker + "&timeframe=" +
+			resolution + "&start=" + startTime + "&end=" + endTime + "&limit=1000&sort=asc"
+	} else {
+		url = "https://data.alpaca.markets/v2/stocks/bars?symbols=" + ticker + "&timeframe=" + resolution +
+			"&start=" + startTime + "&end=" + endTime + "&limit=1000&adjustment=split&feed=" + feed + "&sort=asc"
+	}
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("accept", "application/json")
+	req.Header.Add("APCA-API-KEY-ID", clientConfs.AlpacaAPIKey)
+	req.Header.Add("APCA-API-SECRET-KEY", clientConfs.AlpacaSecretKey)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Errorf("error retrieving historical stock bars: %e", err)
+	}
+
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		fmt.Errorf("error unmarshalling stock data: %e", err)
+	}
+
+	stockPrices, ok := result["bars"].(map[string]any)
+	if !ok || len(stockPrices) == 0 {
+		if isDebug {
+			fmt.Printf("results do not exist.\n")
+		}
+		if strings.HasPrefix(originalTicker, "X:") {
+			originalTicker = strings.Replace(originalTicker, "/", "", -1)
+		}
+		switch originalResolution {
+		case "1T":
+			originalResolution = "minute"
+		case "1H":
+			originalResolution = "hour"
+		case "1W":
+			originalResolution = "week"
+		case "1M":
+			originalResolution = "month"
+		case "1Q":
+			originalResolution = "quarter"
+		case "1Y":
+			originalResolution = "year"
+		case "1D":
+			fallthrough
+		default:
+			originalResolution = "day"
+		}
+		stockData, err = GetStockPrices(originalTicker, clientConfs.PolygonAPIToken, originalResolution, startTimeMilli, endTimeMilli)
+		if err != nil {
+			fmt.Errorf("error pulling stock data from polygon\n")
+			return nil, err
+		}
+	} else {
+		for stockSymbol := range stockPrices {
+			hb := stockPrices[stockSymbol].([]any)
+			if _, ok := stockData[stockSymbol]; !ok {
+				stockData[stockSymbol] = map[int64]SingleStockCandle{}
+			}
+			for _, val := range hb {
+				bar := val.(map[string]any)
+				timeStamp := bar["t"].(string)
+				ts, tsErr := time.Parse(time.RFC3339, timeStamp)
+				if tsErr != nil {
+					fmt.Errorf("error converting timestamp to time: %w\n", tsErr)
+				}
+				tsUnixMilli := ts.UnixMilli()
+				stockData[stockSymbol][tsUnixMilli] = SingleStockCandle{
+					Ticker:         stockSymbol,
+					Close:          bar["c"].(float64),
+					High:           bar["h"].(float64),
+					Low:            bar["l"].(float64),
+					Open:           bar["o"].(float64),
+					Transactions:   int64(bar["n"].(float64)),
+					Timestamp:      ts,
+					Volume:         bar["v"].(float64),
+					WeightedVolume: bar["vw"].(float64),
+				}
+			}
+		}
+	}
+	return stockData, nil
+}
+
 // GetStockPrices grabs a set of prices for a ticker over a duration and returns the set
 func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTimeMilli time.Time) (stockPrices map[string]map[int64]SingleStockCandle, err error) {
 	polygonClient := polygon.New(apiToken)
@@ -152,49 +321,15 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 	for iter.Next() {
 		ts := time.Time(iter.Item().Timestamp).UnixMilli()
 		stockPrices[ticker][ts] = SingleStockCandle{
-			ticker,
-			iter.Item().Close,
-			iter.Item().High,
-			iter.Item().Low,
-			iter.Item().Open,
-			iter.Item().Transactions,
-			time.Time(iter.Item().Timestamp),
-			iter.Item().Volume,
-			iter.Item().VWAP,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			// initialize containers for last n days of prices for various durations
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			// values filled below here are calculated later in the process and filled with zeros for now
-			// RealizedVolatility values over various durations
-			0.0,
-			0.0,
-			0.0,
-			// Trade, Trend, and Tail range values
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			0.0,
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
-			make(map[string]float64),
+			Ticker:         strings.Replace(ticker, "X:", "", -1),
+			Close:          iter.Item().Close,
+			High:           iter.Item().High,
+			Low:            iter.Item().Low,
+			Open:           iter.Item().Open,
+			Transactions:   iter.Item().Transactions,
+			Timestamp:      time.Time(iter.Item().Timestamp),
+			Volume:         iter.Item().Volume,
+			WeightedVolume: iter.Item().VWAP,
 		}
 	}
 	if iter.Err() != nil {
@@ -254,46 +389,47 @@ func RealizedVolatility(prices []float64, ticker string) (realizedVol float64) {
 	return math.Sqrt(variance * daysInYear)
 }
 
-func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle, ticker string) (stockPriceData map[string]map[int64]SingleStockCandle) {
-	var dateKeys []int64
-	for dateKey := range stockPrices[ticker] {
-		dateKeys = append(dateKeys, dateKey)
-	}
-	reverseDateKeys := dateKeys
-	// Sort our date keys in reverse order such that the most recent date is first and the oldest date is last
-	sort.Slice(reverseDateKeys, func(i, j int) bool {
-		return reverseDateKeys[i] > reverseDateKeys[j]
-	})
-	for index, date := range reverseDateKeys {
-		stockCandle := stockPrices[ticker][date]
-		shortDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*SHORTDURATION).UnixMilli()
-		medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
-		longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
+func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceData map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		reverseDateKeys := dateKeys
+		// Sort our date keys in reverse order such that the most recent date is first and the oldest date is last
+		sort.Slice(reverseDateKeys, func(i, j int) bool {
+			return reverseDateKeys[i] > reverseDateKeys[j]
+		})
+		for index, date := range reverseDateKeys {
+			stockCandle := stockPrices[ticker][date]
+			shortDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*SHORTDURATION).UnixMilli()
+			medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
+			longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
 
-		if index+SHORTDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= shortDurationStartMilli {
-			var volDatesShort []int64
-			for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
-				volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
+			if index+SHORTDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= shortDurationStartMilli {
+				var volDatesShort []int64
+				for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
+					volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
+				}
+				stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
 			}
-			stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
-		}
-		if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
-			var volDatesMed []int64
-			for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
-				volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
+			if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
+				var volDatesMed []int64
+				for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
+					volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
+				}
+				stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
 			}
-			stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
-		}
-		if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
-			var volDatesLong []int64
-			for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
-				volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
+			if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
+				var volDatesLong []int64
+				for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
+					volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
+				}
+				stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
 			}
-			stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
+			stockPrices[ticker][date] = stockCandle
 		}
-		stockPrices[ticker][date] = stockCandle
 	}
-
 	return stockPrices
 }
 
@@ -330,15 +466,20 @@ func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (st
 	return stockPrices
 }
 
+// todo: add test for riskRange["low"]
 func calculateRiskRange(price, volatility, riskRangeDuration float64, ticker string) (riskRange map[string]float64) {
 	riskRange = make(map[string]float64)
 	daysInYear := annualization(ticker)
 	riskRange["high"] = (1 + (volatility / daysInYear * riskRangeDuration)) * price
-	riskRange["low"] = (1 - (volatility / daysInYear * riskRangeDuration)) * price
+	rrlow := (1 - (volatility / daysInYear * riskRangeDuration)) * price
+	if rrlow < 0 {
+		rrlow = 0
+	}
+	riskRange["low"] = rrlow
 	return
 }
 
-func CalculateVelocityOfVolatility(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+func CalculateVelocities(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var prevDate = int64(0)
 		var int64DateArray []int64
@@ -356,6 +497,7 @@ func CalculateVelocityOfVolatility(stockPrices map[string]map[int64]SingleStockC
 				singleStock.VelocityRealizedVol30 = stockPrices[ticker][int64Date].RealizedVolatility30 - stockPrices[ticker][prevDate].RealizedVolatility30
 				singleStock.VelocityRealizedVol60 = stockPrices[ticker][int64Date].RealizedVolatility60 - stockPrices[ticker][prevDate].RealizedVolatility60
 				singleStock.VelocityRealizedVol90 = stockPrices[ticker][int64Date].RealizedVolatility90 - stockPrices[ticker][prevDate].RealizedVolatility90
+				singleStock.PriceVelocity = stockPrices[ticker][int64Date].Close - stockPrices[ticker][prevDate].Close
 			}
 			stockPrices[ticker][int64Date] = singleStock
 			prevDate = int64Date
@@ -365,7 +507,7 @@ func CalculateVelocityOfVolatility(stockPrices map[string]map[int64]SingleStockC
 	return stockPriceMap
 }
 
-func CalculateRealizedVolatilityAccel(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+func CalculateAccelerations(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var prevDate = int64(0)
 		var int64DateArray []int64
@@ -383,6 +525,7 @@ func CalculateRealizedVolatilityAccel(stockPrices map[string]map[int64]SingleSto
 				singleStock.RealizedVolAccel30 = stockPrices[ticker][int64Date].VelocityRealizedVol30 - stockPrices[ticker][prevDate].VelocityRealizedVol30
 				singleStock.RealizedVolAccel60 = stockPrices[ticker][int64Date].VelocityRealizedVol60 - stockPrices[ticker][prevDate].VelocityRealizedVol60
 				singleStock.RealizedVolAccel90 = stockPrices[ticker][int64Date].VelocityRealizedVol90 - stockPrices[ticker][prevDate].VelocityRealizedVol90
+				singleStock.PriceAccel = stockPrices[ticker][int64Date].PriceVelocity - stockPrices[ticker][prevDate].PriceVelocity
 			}
 			stockPrices[ticker][int64Date] = singleStock
 			prevDate = int64Date
@@ -512,5 +655,383 @@ func GetProbAdjRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, pr
 			stockPrices[ticker][int64Date] = stockPrice
 		}
 	}
+	return stockPrices
+}
+
+func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		reverseDateKeys := dateKeys
+		// Sort our date keys in reverse order such that the most recent date is first and the oldest date is last
+		sort.Slice(reverseDateKeys, func(i, j int) bool {
+			return reverseDateKeys[i] > reverseDateKeys[j]
+		})
+		for index, date := range reverseDateKeys {
+			stockCandle := stockPrices[ticker][date]
+			shortDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*SHORTDURATION).UnixMilli()
+			medDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*MEDIUMDURATION).UnixMilli()
+			longDurationStartMilli := time.UnixMilli(date).AddDate(0, 0, -1*LONGDURATION).UnixMilli()
+
+			if index+SHORTDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= shortDurationStartMilli {
+				var (
+					shortVolHigh = 0.0
+					shortVolLow  = 0.0
+				)
+				for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
+					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > shortVolHigh {
+						shortVolHigh = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					}
+					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 < shortVolLow &&
+						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 {
+						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					} else if shortVolLow == 0.0 &&
+						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 {
+						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					}
+				}
+				stockCandle.RVolHigh30 = shortVolHigh
+				stockCandle.RVolLow30 = shortVolLow
+				shortRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh30, stockCandle.RVolLow30,
+					stockCandle.RealizedVolatility30)
+				if err != nil {
+					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
+				}
+				stockCandle.RVolPercent30 = shortRVolPercent
+			}
+			if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
+				var (
+					medVolHigh = 0.0
+					medVolLow  = 0.0
+				)
+				for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
+					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > medVolHigh {
+						medVolHigh = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					}
+					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 < medVolLow &&
+						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 {
+						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					} else if medVolLow == 0.0 &&
+						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 {
+						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					}
+				}
+				stockCandle.RVolHigh60 = medVolHigh
+				stockCandle.RVolLow60 = medVolLow
+				medRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh60, stockCandle.RVolLow60,
+					stockCandle.RealizedVolatility60)
+				if err != nil {
+					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
+				}
+				stockCandle.RVolPercent60 = medRVolPercent
+			}
+			if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
+				var (
+					longVolHigh = 0.0
+					longVolLow  = 0.0
+				)
+				for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
+					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > longVolHigh {
+						longVolHigh = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					}
+					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 < longVolLow &&
+						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 {
+						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					} else if longVolLow == 0.0 &&
+						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 {
+						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					}
+				}
+				stockCandle.RVolHigh90 = longVolHigh
+				stockCandle.RVolLow90 = longVolLow
+				longRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh90, stockCandle.RVolLow90,
+					stockCandle.RealizedVolatility90)
+				if err != nil {
+					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
+				}
+				stockCandle.RVolPercent90 = longRVolPercent
+			}
+			stockPrices[ticker][date] = stockCandle
+		}
+	}
+	return stockPrices
+}
+
+func calculateRVolPercentRange(rVolHigh, rVolLow, rVol float64) (rvolPercent float64, err error) {
+	if rVolHigh-rVolLow == 0.0 {
+		err = errors.New("divide by zero error")
+		return 0.0, err
+	}
+	return (rVol - rVolLow) / (rVolHigh - rVolLow), nil
+}
+
+func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		for dateInt64 := range stockPrices[ticker] {
+			singleTickerData := stockPrices[ticker][dateInt64]
+			if len(stockPrices[ticker][dateInt64].ThirtyDaysPrices) > 0 {
+				var shortClosingPriceXValsSlice []float64
+				var shortClosingPriceYValsSlice []float64
+				shortDurationIndex := 0
+				for dateString := range stockPrices[ticker][dateInt64].ThirtyDaysPrices {
+					shortClosingPriceYValsSlice = append(shortClosingPriceYValsSlice, stockPrices[ticker][dateInt64].ThirtyDaysPrices[dateString])
+					shortDurationIndex++
+					shortClosingPriceXValsSlice = append(shortClosingPriceXValsSlice, float64(shortDurationIndex))
+				}
+				shortSlope, shortIntercept, err := calcLinearRegression(shortClosingPriceXValsSlice, shortClosingPriceYValsSlice)
+				if err != nil {
+					fmt.Errorf("error getting linear regression: %e", err)
+				}
+				if isDebug {
+					fmt.Printf("Date: %s", stockPrices[ticker][dateInt64].Timestamp)
+					fmt.Printf("short ClosingPrices: %v\n", shortClosingPriceYValsSlice)
+					fmt.Printf("short XVals: %v\n", shortClosingPriceXValsSlice)
+					fmt.Printf("ShortDuration linear regression intercept: %f\n", shortIntercept)
+				}
+				singleTickerData.SlopeShortDuration = shortSlope
+			} else {
+				singleTickerData.SlopeShortDuration = 0.0
+			}
+
+			if len(stockPrices[ticker][dateInt64].SixtyDaysPrices) > 0 {
+				var medClosingPriceXValsSlice []float64
+				var medClosingPriceYValsSlice []float64
+				medDurationIndex := 0
+				for dateString := range stockPrices[ticker][dateInt64].SixtyDaysPrices {
+					medClosingPriceYValsSlice = append(medClosingPriceYValsSlice, stockPrices[ticker][dateInt64].SixtyDaysPrices[dateString])
+					medDurationIndex++
+					medClosingPriceXValsSlice = append(medClosingPriceXValsSlice, float64(medDurationIndex))
+				}
+				medSlope, medIntercept, err := calcLinearRegression(medClosingPriceXValsSlice, medClosingPriceYValsSlice)
+				if err != nil {
+					fmt.Errorf("error getting linear regression: %e", err)
+				}
+				if isDebug {
+					fmt.Printf("MedDuration linear regression intercept: %f\n", medIntercept)
+				}
+				singleTickerData.SlopeMedDuration = medSlope
+			} else {
+				singleTickerData.SlopeMedDuration = 0.0
+			}
+
+			if len(stockPrices[ticker][dateInt64].NinetyDaysPrices) > 0 {
+				var longClosingPriceXValsSlice []float64
+				var longClosingPriceYValsSlice []float64
+				longDurationIndex := 0
+				for dateString := range stockPrices[ticker][dateInt64].NinetyDaysPrices {
+					longClosingPriceYValsSlice = append(longClosingPriceYValsSlice, stockPrices[ticker][dateInt64].NinetyDaysPrices[dateString])
+					longDurationIndex++
+					longClosingPriceXValsSlice = append(longClosingPriceXValsSlice, float64(longDurationIndex))
+				}
+				longSlope, longIntercept, err := calcLinearRegression(longClosingPriceXValsSlice, longClosingPriceYValsSlice)
+				if err != nil {
+					fmt.Errorf("error getting linear regression: %e", err)
+					return stockPrices
+				}
+				if isDebug {
+					fmt.Printf("LongDuration linear regression intercept: %f\n", longIntercept)
+				}
+				singleTickerData.SlopeLongDuration = longSlope
+			} else {
+				singleTickerData.SlopeLongDuration = 0.0
+			}
+
+			stockPrices[ticker][dateInt64] = singleTickerData
+		}
+	}
+	return stockPrices
+}
+
+func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64, err error) {
+	if len(xValues) != len(yValues) || len(xValues) < 2 {
+		return 0, 0, errors.New("invalid input: x and y slices must have the same length and at least 2 data points")
+	}
+
+	n := float64(len(xValues))
+	var sumX, sumY, sumXY, sumX2 float64
+
+	// Calculate sums
+	for i := 0; i < len(xValues); i++ {
+		sumX += xValues[i]
+		sumY += yValues[i]
+		sumXY += xValues[i] * yValues[i]
+		sumX2 += math.Pow(xValues[i], 2)
+	}
+
+	// Calculate slope (m)
+	slope = (n*sumXY - sumX*sumY) / (n*sumX2 - math.Pow(sumX, 2))
+
+	// Calculate y-intercept (b)
+	intercept = (sumY - slope*sumX) / n
+
+	return slope, intercept, nil
+}
+
+// GetSimpleSlopes computes the raw price delta for each duration per day.
+// For each day it looks back N calendar days, rolling back one day at a time
+// until finding a trading day at or before the target, then computes:
+//   slope = close_today - close_at_lookback_date
+//
+// SlopeXxxValid is set true only when a lookback date was found; false means
+// insufficient history and the slope value of 0.0 is meaningless.
+func GetSimpleSlopes(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		// Sort descending so dateKeys[0] is most recent; the inner loop's
+		// first match at or before a target is the nearest-prior trading day.
+		sort.Slice(dateKeys, func(i, j int) bool {
+			return dateKeys[i] > dateKeys[j]
+		})
+
+		for _, currentDate := range dateKeys {
+			stockCandle := stockPrices[ticker][currentDate]
+			currentClose := stockCandle.Close
+
+			shortTarget := time.UnixMilli(currentDate).AddDate(0, 0, -SHORTDURATION).UnixMilli()
+			for _, pastDate := range dateKeys {
+				if pastDate <= shortTarget {
+					stockCandle.SlopeShortDuration = currentClose - stockPrices[ticker][pastDate].Close
+					stockCandle.SlopeShortValid = true
+					if isDebug {
+						fmt.Printf("ticker=%s date=%s shortSlope=%.4f\n",
+							ticker, time.UnixMilli(currentDate).Format(time.DateOnly), stockCandle.SlopeShortDuration)
+					}
+					break
+				}
+			}
+
+			medTarget := time.UnixMilli(currentDate).AddDate(0, 0, -MEDIUMDURATION).UnixMilli()
+			for _, pastDate := range dateKeys {
+				if pastDate <= medTarget {
+					stockCandle.SlopeMedDuration = currentClose - stockPrices[ticker][pastDate].Close
+					stockCandle.SlopeMedValid = true
+					if isDebug {
+						fmt.Printf("ticker=%s date=%s medSlope=%.4f\n",
+							ticker, time.UnixMilli(currentDate).Format(time.DateOnly), stockCandle.SlopeMedDuration)
+					}
+					break
+				}
+			}
+
+			longTarget := time.UnixMilli(currentDate).AddDate(0, 0, -LONGDURATION).UnixMilli()
+			for _, pastDate := range dateKeys {
+				if pastDate <= longTarget {
+					stockCandle.SlopeLongDuration = currentClose - stockPrices[ticker][pastDate].Close
+					stockCandle.SlopeLongValid = true
+					if isDebug {
+						fmt.Printf("ticker=%s date=%s longSlope=%.4f\n",
+							ticker, time.UnixMilli(currentDate).Format(time.DateOnly), stockCandle.SlopeLongDuration)
+					}
+					break
+				}
+			}
+
+			stockPrices[ticker][currentDate] = stockCandle
+		}
+	}
+	return stockPrices
+}
+
+// CalculateTrendDirections assigns TradeDirection, TrendDirection, and TailDirection
+// to each day based on whether the three most recent consecutive slopes (today,
+// yesterday, day-before) are all positive (Bullish), all negative (Bearish),
+// mixed (Neutral), or unavailable (Indeterminate).
+//
+// Must be called after GetSimpleSlopes so that validity flags are set.
+func CalculateTrendDirections(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	for ticker := range stockPrices {
+		var dateKeys []int64
+		for dateKey := range stockPrices[ticker] {
+			dateKeys = append(dateKeys, dateKey)
+		}
+		// Sort ascending so index i-1 and i-2 are the prior trading days.
+		sort.Slice(dateKeys, func(i, j int) bool {
+			return dateKeys[i] < dateKeys[j]
+		})
+
+		for i, currentDate := range dateKeys {
+			stockCandle := stockPrices[ticker][currentDate]
+			if i < 2 {
+				stockCandle.TradeDirection = "Indeterminate"
+				stockCandle.TrendDirection = "Indeterminate"
+				stockCandle.TailDirection = "Indeterminate"
+			} else {
+				prev1 := stockPrices[ticker][dateKeys[i-1]]
+				prev2 := stockPrices[ticker][dateKeys[i-2]]
+
+				stockCandle.TradeDirection = trendLabel(
+					stockCandle.SlopeShortDuration, stockCandle.SlopeShortValid,
+					prev1.SlopeShortDuration, prev1.SlopeShortValid,
+					prev2.SlopeShortDuration, prev2.SlopeShortValid,
+				)
+				stockCandle.TrendDirection = trendLabel(
+					stockCandle.SlopeMedDuration, stockCandle.SlopeMedValid,
+					prev1.SlopeMedDuration, prev1.SlopeMedValid,
+					prev2.SlopeMedDuration, prev2.SlopeMedValid,
+				)
+				stockCandle.TailDirection = trendLabel(
+					stockCandle.SlopeLongDuration, stockCandle.SlopeLongValid,
+					prev1.SlopeLongDuration, prev1.SlopeLongValid,
+					prev2.SlopeLongDuration, prev2.SlopeLongValid,
+				)
+				if isDebug {
+					fmt.Printf("ticker=%s date=%d tradeDir=%s trendDir=%s tailDir=%s\n",
+						ticker, currentDate,
+						stockCandle.TradeDirection, stockCandle.TrendDirection, stockCandle.TailDirection)
+				}
+			}
+			stockPrices[ticker][currentDate] = stockCandle
+		}
+	}
+	return stockPrices
+}
+
+// trendLabel returns the direction label for one duration given three consecutive
+// slope values and their validity flags.
+func trendLabel(s0 float64, v0 bool, s1 float64, v1 bool, s2 float64, v2 bool) string {
+	if !v0 || !v1 || !v2 {
+		return "Indeterminate"
+	}
+	if s0 > 0 && s1 > 0 && s2 > 0 {
+		return "Bullish"
+	}
+	if s0 < 0 && s1 < 0 && s2 < 0 {
+		return "Bearish"
+	}
+	return "Neutral"
+}
+
+// CalculateTrend takes the end date and returns the difference between the input date's close price and the close price
+// of the date that is back a number of days prior to the input date
+func CalculateTrend(stockPrices map[string]map[int64]SingleStockCandle, ticker string, endDate time.Time, tickerDuration int64) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+	/*
+	* Take the Close price from the input date and subtract a number of days equal to the duration. If a date does not
+	* exist, but is not prior to the start date, subtract another day and try again until hitting a number that exists.
+	 */
+	var trendInt float64
+	endDateMilli := endDate.UnixMilli()
+	startDateMilli := endDateMilli - time.Hour.Milliseconds()*DAY*tickerDuration
+
+	trendInt = stockPrices[ticker][endDateMilli].Close - stockPrices[ticker][startDateMilli].Close
+
+	trendRatio := trendInt / stockPrices[ticker][endDateMilli].Close
+	stockPrice := stockPrices[ticker][endDateMilli]
+
+	switch trendRatio {
+	case SHORTDURATION:
+
+		stockPrice.SlopeShortDuration = trendRatio
+	case MEDIUMDURATION:
+		stockPrice.SlopeMedDuration = trendRatio
+	case LONGDURATION:
+		stockPrice.SlopeLongDuration = trendRatio
+	}
+	stockPrices[ticker][endDateMilli] = stockPrice
+
 	return stockPrices
 }
