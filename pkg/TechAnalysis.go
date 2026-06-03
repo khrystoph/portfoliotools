@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	polygon "github.com/polygon-io/client-go/rest"
 	"github.com/polygon-io/client-go/rest/models"
 	gonum "gonum.org/v1/gonum/stat"
@@ -163,22 +162,6 @@ func GetTargetAnnualReturn(costBasis, riskFreeRate float64, purchaseDate time.Ti
 		targetAnnualReturnPrice = 2*costBasis - baseReturn
 	}
 	return targetAnnualReturnPrice, nil
-}
-
-func createAlpacaClient(APIKey, APISecretKey string, live bool) (client *alpaca.Client) {
-	if live {
-		return alpaca.NewClient(alpaca.ClientOpts{
-			APIKey:    APIKey,
-			APISecret: APISecretKey,
-			BaseURL:   ALPACA_LIVE_API,
-		})
-	} else {
-		return alpaca.NewClient(alpaca.ClientOpts{
-			APIKey:    APIKey,
-			APISecret: APISecretKey,
-			BaseURL:   ALPACA_PAPER_API,
-		})
-	}
 }
 
 // GetStockPricesAlpaca retrieves stock prices using Alpaca's stock API. It does NOT gather crypto data using the stock
@@ -366,15 +349,6 @@ func calculateVariance(returns []float64) float64 {
 }
 
 // calculateMean calculates the arithmetic mean of a float64 slice of inputs and returns the resulting mean
-func calculateMean(returns []float64) float64 {
-	var sum float64
-
-	for _, r := range returns {
-		sum += r
-	}
-
-	return sum / float64(len(returns))
-}
 
 /*
 RealizedVolatility calculates the volatility of prices on varying timelines. It's used to calculate the volatility
@@ -871,7 +845,8 @@ func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64,
 // GetSimpleSlopes computes the raw price delta for each duration per day.
 // For each day it looks back N calendar days, rolling back one day at a time
 // until finding a trading day at or before the target, then computes:
-//   slope = close_today - close_at_lookback_date
+//
+//	slope = close_today - close_at_lookback_date
 //
 // SlopeXxxValid is set true only when a lookback date was found; false means
 // insufficient history and the slope value of 0.0 is meaningless.

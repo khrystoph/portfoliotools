@@ -25,11 +25,10 @@ func main() {
 		data = map[string]pkg.CondensedRangesJSON{}
 	)
 	flag.Parse()
-	userDir, err := os.UserHomeDir()
+	_, err := os.UserHomeDir()
 	if err != nil {
 		log.Printf("error reading user's homedir: %v", err)
 	}
-	userDir = strings.Replace(userDir, "~", userDir, 1)
 	readFile, err := os.ReadFile(inFile)
 	if err != nil {
 		log.Fatal(err)
@@ -47,5 +46,4 @@ func main() {
 		}
 		log.Printf("%s:\n%s\n", ticker, jsonData)
 	}
-	return
 }

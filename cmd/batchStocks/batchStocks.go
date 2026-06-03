@@ -51,7 +51,7 @@ func init() {
 func main() {
 	flag.Parse()
 	var (
-		tickerData          = make(map[string]map[int64]pkg.SingleStockCandle)
+		tickerData          map[string]map[int64]pkg.SingleStockCandle
 		tickerBatch         = make(map[string]map[int64]pkg.SingleStockCandle)
 		batchStockRanges    = make(map[string]pkg.CondensedRangesJSON)
 		tickerArray         = make([]string, 0)
@@ -70,10 +70,10 @@ func main() {
 	}
 
 	configFile, err := os.Open(tickerConfig)
-	defer configFile.Close()
 	if err != nil {
 		log.Printf("error opening the config file: %v", err)
 	}
+	defer configFile.Close()
 	configDecoder := json.NewDecoder(configFile)
 	stockDataConfig := pkg.StockDataConf{}
 	err = configDecoder.Decode(&stockDataConfig)
@@ -104,9 +104,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		for _, ticker := range row {
-			tickerArray = append(tickerArray, ticker)
-		}
+		tickerArray = append(tickerArray, row...)
 	}
 
 	for _, tickerItem := range tickerArray {
@@ -165,7 +163,7 @@ func main() {
 		for ticker, stock := range tickerData {
 			latestDate := int64(0)
 			var rrHigh, rrLow, rvolpct, avgvolratio float64
-			for date, _ := range tickerData[ticker] {
+			for date := range tickerData[ticker] {
 				// Looking for the "max" date to get the most recent datetime
 				if date > latestDate {
 					latestDate = date
@@ -243,5 +241,4 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	return
 }
