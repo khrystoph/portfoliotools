@@ -16,7 +16,7 @@ import (
 
 var (
 	csvFile, outFile, tickerConfig, batchStockRangesFile, timeDuration string
-	debug, excelOut, noEmail                                           bool
+	debug, excelOut, noEmail, showTail                                 bool
 )
 
 func init() {
@@ -45,6 +45,8 @@ func init() {
 		"except it swaps the file type")
 	flag.StringVar(&timeDuration, "t", "SHORT",
 		"give the duration in terms of number of candles, such as SHORT for the short-term trend duration")
+	flag.BoolVar(&showTail, "tail", false, "Include Tail Slope and Tail Dir columns in Excel output")
+	flag.BoolVar(&showTail, "tail-cols", false, "Include Tail Slope and Tail Dir columns in Excel output")
 }
 
 func main() {
@@ -150,6 +152,8 @@ func main() {
 		tickerData = pkg.CalculateVelocities(tickerData)
 		tickerData = pkg.CalculateAccelerations(tickerData)
 		tickerData = pkg.GetProbAdjRiskRanges(tickerData, stockDataConfig.RangeAdjustment)
+		tickerData = pkg.GetSimpleSlopes(tickerData, debug)
+		tickerData = pkg.CalculateTrendDirections(tickerData, debug)
 		//tickerData = pkg.GetLinearRegressionSlope(tickerData, debug)
 		tickerStripped := strings.ToUpper(tickerItem)
 		if strings.HasPrefix(tickerStripped, "X:") {
@@ -161,7 +165,7 @@ func main() {
 
 		for ticker, stock := range tickerData {
 			latestDate := int64(0)
-			var durationRVol, rrHigh, rrLow, rvolpct, avgvolratio float64
+			var rrHigh, rrLow, rvolpct, avgvolratio float64
 			for date, _ := range tickerData[ticker] {
 				// Looking for the "max" date to get the most recent datetime
 				if date > latestDate {
@@ -170,7 +174,6 @@ func main() {
 			}
 			switch timeDuration {
 			case "MEDIUM":
-				durationRVol = stock[latestDate].RealizedVolatility60
 				if isCrypto {
 					rrHigh = stock[latestDate].TrendRangeAdj["high"]
 					rrLow = stock[latestDate].TrendRangeAdj["low"]
@@ -181,7 +184,6 @@ func main() {
 				rvolpct = stock[latestDate].RVolPercent60
 				avgvolratio = stock[latestDate].AvgVolumeRatio60
 			case "LONG":
-				durationRVol = stock[latestDate].RealizedVolatility90
 				if isCrypto {
 					rrHigh = stock[latestDate].TailRangeAdj["high"]
 					rrLow = stock[latestDate].TailRangeAdj["low"]
@@ -194,7 +196,6 @@ func main() {
 			case "SHORT":
 				fallthrough
 			default:
-				durationRVol = stock[latestDate].RealizedVolatility30
 				if isCrypto {
 					rrHigh = stock[latestDate].TradeRangeAdj["high"]
 					rrLow = stock[latestDate].TradeRangeAdj["low"]
@@ -206,17 +207,19 @@ func main() {
 				avgvolratio = stock[latestDate].AvgVolumeRatio30
 			}
 			batchStockRanges[tickerStripped] = pkg.CondensedRangesJSON{
-				Ticker:        tickerStripped,
-				Close:         stock[latestDate].Close,
-				Volume:        stock[latestDate].Volume,
-				AvgVolRatio:   avgvolratio,
-				Rvol:          durationRVol,
-				RiskRangeHigh: rrHigh,
-				RiskRangeLow:  rrLow,
-				Slope:         0.0,
-				Trend:         "Not Yet Implemented", //todo: calculate trend using CalculateTrend from TechAnalysis.go
-				Timestamp:     stock[latestDate].Timestamp,
-				RVolPercent:   rvolpct,
+				Ticker:         tickerStripped,
+				Close:          stock[latestDate].Close,
+				AvgVolRatio:    avgvolratio,
+				RVolPercent:    rvolpct,
+				RiskRangeHigh:  rrHigh,
+				RiskRangeLow:   rrLow,
+				TradeSlope:     stock[latestDate].SlopeShortDuration,
+				TrendSlope:     stock[latestDate].SlopeMedDuration,
+				TailSlope:      stock[latestDate].SlopeLongDuration,
+				TradeDirection: stock[latestDate].TradeDirection,
+				TrendDirection: stock[latestDate].TrendDirection,
+				TailDirection:  stock[latestDate].TailDirection,
+				Timestamp:      stock[latestDate].Timestamp,
 			}
 		}
 	}
@@ -232,7 +235,7 @@ func main() {
 
 	if excelOut {
 		excelOutFile := strings.Split(batchStockRangesFile, ".")[0] + ".xlsx"
-		pkg.GenerateStockReportXLSX(batchStockRanges, excelOutFile)
+		pkg.GenerateStockReportXLSX(batchStockRanges, excelOutFile, showTail)
 	}
 
 	if !noEmail {
