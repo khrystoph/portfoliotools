@@ -102,6 +102,9 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 				RVolLowLong:        stockPrices[ticker][dateInt64].RVolLow90,
 				TailRangeAdj:       stockPrices[ticker][dateInt64].TailRangeAdj,
 				PTailRangeAdj:      stockPrices[ticker][dateInt64].PTailRangeAdj,
+				TradeDirection:     stockPrices[ticker][dateInt64].TradeDirection,
+				TrendDirection:     stockPrices[ticker][dateInt64].TrendDirection,
+				TailDirection:      stockPrices[ticker][dateInt64].TailDirection,
 			}
 		}
 	}
