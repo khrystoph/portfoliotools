@@ -94,6 +94,7 @@ func main() {
 	}
 	// retrieve stock ticker's prices and store in a map
 
+	ticker = pkg.NormalizeTicker(ticker)
 	if stockDataConfig.AlpacaAPIKey != "" {
 		switch resolution {
 		case "minute", "Minute", "MINUTE", "M", "m":
@@ -109,16 +110,16 @@ func main() {
 		default:
 			resolution = "1D"
 		}
-		tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, strings.ToUpper(ticker), resolution, startTimeMilli, endTimeMilli, debug)
+		tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, ticker, resolution, startTimeMilli, endTimeMilli, debug)
 		if err != nil {
 			log.Printf("unable to retrieve stock data: %v", err)
 		}
-		if strings.HasPrefix(strings.ToUpper(ticker), "X:") {
+		if strings.HasPrefix(ticker, "X:") {
 			ticker = strings.Split(ticker, ":")[1]
 			fmt.Printf("ticker: %s\n", ticker)
 		}
 	} else {
-		tickerData, err = pkg.GetStockPrices(strings.ToUpper(ticker), stockDataConfig.PolygonAPIToken, resolution, startTimeMilli, endTimeMilli)
+		tickerData, err = pkg.GetStockPrices(ticker, stockDataConfig.PolygonAPIToken, resolution, startTimeMilli, endTimeMilli)
 		if err != nil {
 			log.Printf("unable to get stock prices")
 		}

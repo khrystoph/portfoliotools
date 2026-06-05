@@ -58,6 +58,29 @@ func TestCalculateDailyReturn(t *testing.T) {
 	}
 }
 
+func TestNormalizeTicker(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"all lowercase", "envx", "ENVX"},
+		{"all uppercase", "ENVX", "ENVX"},
+		{"mixed case", "eNvX", "ENVX"},
+		{"crypto lowercase prefix and symbol", "x:eth", "X:ETH"},
+		{"crypto uppercase", "X:ETH", "X:ETH"},
+		{"crypto mixed case", "X:eTh", "X:ETH"},
+		{"leading/trailing whitespace", "  aapl  ", "AAPL"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NormalizeTicker(tt.input); got != tt.want {
+				t.Errorf("NormalizeTicker(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestGetSimpleSlopes(t *testing.T) {
 	today := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
 	thirtyDaysAgo := today.AddDate(0, 0, -30)    // exact target for SHORT
