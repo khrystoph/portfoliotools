@@ -134,6 +134,8 @@ func main() {
 	tickerData = pkg.CalculateVelocities(tickerData)
 	tickerData = pkg.CalculateAccelerations(tickerData)
 	tickerData = pkg.GetProbAdjRiskRanges(tickerData, stockDataConfig.RangeAdjustment)
+	tickerData = pkg.GetSimpleSlopes(tickerData, debug)
+	tickerData = pkg.CalculateTrendDirections(tickerData, debug)
 	//tickerData = pkg.GetLinearRegressionSlope(tickerData, debug)
 
 	if err != nil {
