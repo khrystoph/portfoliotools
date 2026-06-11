@@ -25,3 +25,4 @@ go.work
 
 # ignore the config file because it contains API credentials that we don't want to leak
 .stockclientconfig.json
+.worktrees/
