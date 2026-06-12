@@ -179,8 +179,8 @@ func main() {
 					rrHigh = stock[latestDate].PTrendRangeAdj["high"]
 					rrLow = stock[latestDate].PTrendRangeAdj["low"]
 				}
-				rvolpct = stock[latestDate].RVolPercent60
-				avgvolratio = stock[latestDate].AvgVolumeRatio60
+				rvolpct = stock[latestDate].RVolPercentMed
+				avgvolratio = stock[latestDate].AvgVolumeRatioMed
 			case "LONG":
 				if isCrypto {
 					rrHigh = stock[latestDate].TailRangeAdj["high"]
@@ -189,8 +189,8 @@ func main() {
 					rrHigh = stock[latestDate].PTailRangeAdj["high"]
 					rrLow = stock[latestDate].PTailRangeAdj["low"]
 				}
-				rvolpct = stock[latestDate].RVolPercent90
-				avgvolratio = stock[latestDate].AvgVolumeRatio90
+				rvolpct = stock[latestDate].RVolPercentLong
+				avgvolratio = stock[latestDate].AvgVolumeRatioLong
 			case "SHORT":
 				fallthrough
 			default:
@@ -201,8 +201,8 @@ func main() {
 					rrHigh = stock[latestDate].PTradeRangeAdj["high"]
 					rrLow = stock[latestDate].PTradeRangeAdj["low"]
 				}
-				rvolpct = stock[latestDate].RVolPercent30
-				avgvolratio = stock[latestDate].AvgVolumeRatio30
+				rvolpct = stock[latestDate].RVolPercentShort
+				avgvolratio = stock[latestDate].AvgVolumeRatioShort
 			}
 			batchStockRanges[tickerStripped] = pkg.CondensedRangesJSON{
 				Ticker:         tickerStripped,

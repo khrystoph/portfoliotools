@@ -72,39 +72,39 @@ func PrepareToPrintData(stockPrices map[string]map[int64]SingleStockCandle) (con
 
 				Timestamp: stockPrices[ticker][dateInt64].Timestamp,
 				// short duration
-				AvgVolumeShort:      stockPrices[ticker][dateInt64].AvgVolume30,
-				AvgVolumeRatioShort: stockPrices[ticker][dateInt64].AvgVolumeRatio30,
+				AvgVolumeShort:      stockPrices[ticker][dateInt64].AvgVolumeShort,
+				AvgVolumeRatioShort: stockPrices[ticker][dateInt64].AvgVolumeRatioShort,
 				TradeSlope:          stockPrices[ticker][dateInt64].SlopeShortDuration,
-				RVolShort:           stockPrices[ticker][dateInt64].RealizedVolatility30,
-				RVolShortVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol30,
-				RVolShortAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel30,
-				RVolPercentShort:    stockPrices[ticker][dateInt64].RVolPercent30,
-				RVolHighShort:       stockPrices[ticker][dateInt64].RVolHigh30,
-				RVolLowShort:        stockPrices[ticker][dateInt64].RVolLow30,
+				RVolShort:           stockPrices[ticker][dateInt64].RealizedVolatilityShort,
+				RVolShortVel:        stockPrices[ticker][dateInt64].VelocityRealizedVolShort,
+				RVolShortAccel:      stockPrices[ticker][dateInt64].RealizedVolAccelShort,
+				RVolPercentShort:    stockPrices[ticker][dateInt64].RVolPercentShort,
+				RVolHighShort:       stockPrices[ticker][dateInt64].RVolHighShort,
+				RVolLowShort:        stockPrices[ticker][dateInt64].RVolLowShort,
 				TradeRangeAdj:       stockPrices[ticker][dateInt64].TradeRangeAdj,
 				PtradeRangeAdj:      stockPrices[ticker][dateInt64].PTradeRangeAdj,
 				// medium duration
-				AvgVolumeMed:      stockPrices[ticker][dateInt64].AvgVolume60,
-				AvgVolumeRatioMed: stockPrices[ticker][dateInt64].AvgVolumeRatio60,
+				AvgVolumeMed:      stockPrices[ticker][dateInt64].AvgVolumeMed,
+				AvgVolumeRatioMed: stockPrices[ticker][dateInt64].AvgVolumeRatioMed,
 				TrendSlope:        stockPrices[ticker][dateInt64].SlopeMedDuration,
-				RVolMed:           stockPrices[ticker][dateInt64].RealizedVolatility60,
-				RVolMedVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol60,
-				RVolMedAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel60,
-				RVolPercentMed:    stockPrices[ticker][dateInt64].RVolPercent60,
-				RVolHighMed:       stockPrices[ticker][dateInt64].RVolHigh60,
-				RVolLowMed:        stockPrices[ticker][dateInt64].RVolLow60,
+				RVolMed:           stockPrices[ticker][dateInt64].RealizedVolatilityMed,
+				RVolMedVel:        stockPrices[ticker][dateInt64].VelocityRealizedVolMed,
+				RVolMedAccel:      stockPrices[ticker][dateInt64].RealizedVolAccelMed,
+				RVolPercentMed:    stockPrices[ticker][dateInt64].RVolPercentMed,
+				RVolHighMed:       stockPrices[ticker][dateInt64].RVolHighMed,
+				RVolLowMed:        stockPrices[ticker][dateInt64].RVolLowMed,
 				TrendRangeAdj:     stockPrices[ticker][dateInt64].TrendRangeAdj,
 				PTrendRangeAdj:    stockPrices[ticker][dateInt64].PTrendRangeAdj,
 				// long duration
-				AvgVolumeLong:      stockPrices[ticker][dateInt64].AvgVolume90,
-				AvgVolumeRatioLong: stockPrices[ticker][dateInt64].AvgVolumeRatio90,
+				AvgVolumeLong:      stockPrices[ticker][dateInt64].AvgVolumeLong,
+				AvgVolumeRatioLong: stockPrices[ticker][dateInt64].AvgVolumeRatioLong,
 				TailSlope:          stockPrices[ticker][dateInt64].SlopeLongDuration,
-				RVolLong:           stockPrices[ticker][dateInt64].RealizedVolatility90,
-				RVolLongVel:        stockPrices[ticker][dateInt64].VelocityRealizedVol90,
-				RVolLongAccel:      stockPrices[ticker][dateInt64].RealizedVolAccel90,
-				RVolPercentLong:    stockPrices[ticker][dateInt64].RVolPercent90,
-				RVolHighLong:       stockPrices[ticker][dateInt64].RVolHigh90,
-				RVolLowLong:        stockPrices[ticker][dateInt64].RVolLow90,
+				RVolLong:           stockPrices[ticker][dateInt64].RealizedVolatilityLong,
+				RVolLongVel:        stockPrices[ticker][dateInt64].VelocityRealizedVolLong,
+				RVolLongAccel:      stockPrices[ticker][dateInt64].RealizedVolAccelLong,
+				RVolPercentLong:    stockPrices[ticker][dateInt64].RVolPercentLong,
+				RVolHighLong:       stockPrices[ticker][dateInt64].RVolHighLong,
+				RVolLowLong:        stockPrices[ticker][dateInt64].RVolLowLong,
 				TailRangeAdj:       stockPrices[ticker][dateInt64].TailRangeAdj,
 				PTailRangeAdj:      stockPrices[ticker][dateInt64].PTailRangeAdj,
 				TradeDirection:     stockPrices[ticker][dateInt64].TradeDirection,
@@ -390,21 +390,21 @@ func StoreRealizedVols(stockPrices map[string]map[int64]SingleStockCandle) (stoc
 				for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
 					volDatesShort = append(volDatesShort, reverseDateKeys[shortIndex])
 				}
-				stockCandle.ThirtyDaysPrices, stockCandle.RealizedVolatility30 = calculateVolatility(volDatesShort, stockPrices, ticker)
+				stockCandle.ShortPrices, stockCandle.RealizedVolatilityShort = calculateVolatility(volDatesShort, stockPrices, ticker)
 			}
 			if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
 				var volDatesMed []int64
 				for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
 					volDatesMed = append(volDatesMed, reverseDateKeys[medIndex])
 				}
-				stockCandle.SixtyDaysPrices, stockCandle.RealizedVolatility60 = calculateVolatility(volDatesMed, stockPrices, ticker)
+				stockCandle.MedPrices, stockCandle.RealizedVolatilityMed = calculateVolatility(volDatesMed, stockPrices, ticker)
 			}
 			if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
 				var volDatesLong []int64
 				for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
 					volDatesLong = append(volDatesLong, reverseDateKeys[longIndex])
 				}
-				stockCandle.NinetyDaysPrices, stockCandle.RealizedVolatility90 = calculateVolatility(volDatesLong, stockPrices, ticker)
+				stockCandle.LongPrices, stockCandle.RealizedVolatilityLong = calculateVolatility(volDatesLong, stockPrices, ticker)
 			}
 			stockPrices[ticker][date] = stockCandle
 		}
@@ -430,14 +430,14 @@ func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (st
 	for ticker := range stockPrices {
 		for day := range stockPrices[ticker] {
 			dailyTicker := stockPrices[ticker][day]
-			if stockPrices[ticker][day].RealizedVolatility30 != 0.0 {
-				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility30, SHORTDURATION, ticker)
+			if stockPrices[ticker][day].RealizedVolatilityShort != 0.0 {
+				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatilityShort, SHORTDURATION, ticker)
 			}
-			if stockPrices[ticker][day].RealizedVolatility60 != 0.0 {
-				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility60, MEDIUMDURATION, ticker)
+			if stockPrices[ticker][day].RealizedVolatilityMed != 0.0 {
+				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatilityMed, MEDIUMDURATION, ticker)
 			}
-			if stockPrices[ticker][day].RealizedVolatility90 != 0.0 {
-				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatility90, LONGDURATION, ticker)
+			if stockPrices[ticker][day].RealizedVolatilityLong != 0.0 {
+				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatilityLong, LONGDURATION, ticker)
 			}
 			stockPrices[ticker][day] = dailyTicker
 		}
@@ -473,9 +473,9 @@ func CalculateVelocities(stockPrices map[string]map[int64]SingleStockCandle) (st
 		for _, int64Date := range int64DateArray {
 			singleStock := stockPrices[ticker][int64Date]
 			if prevDate != 0 {
-				singleStock.VelocityRealizedVol30 = stockPrices[ticker][int64Date].RealizedVolatility30 - stockPrices[ticker][prevDate].RealizedVolatility30
-				singleStock.VelocityRealizedVol60 = stockPrices[ticker][int64Date].RealizedVolatility60 - stockPrices[ticker][prevDate].RealizedVolatility60
-				singleStock.VelocityRealizedVol90 = stockPrices[ticker][int64Date].RealizedVolatility90 - stockPrices[ticker][prevDate].RealizedVolatility90
+				singleStock.VelocityRealizedVolShort = stockPrices[ticker][int64Date].RealizedVolatilityShort - stockPrices[ticker][prevDate].RealizedVolatilityShort
+				singleStock.VelocityRealizedVolMed = stockPrices[ticker][int64Date].RealizedVolatilityMed - stockPrices[ticker][prevDate].RealizedVolatilityMed
+				singleStock.VelocityRealizedVolLong = stockPrices[ticker][int64Date].RealizedVolatilityLong - stockPrices[ticker][prevDate].RealizedVolatilityLong
 				singleStock.PriceVelocity = stockPrices[ticker][int64Date].Close - stockPrices[ticker][prevDate].Close
 			}
 			stockPrices[ticker][int64Date] = singleStock
@@ -501,9 +501,9 @@ func CalculateAccelerations(stockPrices map[string]map[int64]SingleStockCandle) 
 		for _, int64Date := range int64DateArray {
 			singleStock := stockPrices[ticker][int64Date]
 			if prevDate != 0 {
-				singleStock.RealizedVolAccel30 = stockPrices[ticker][int64Date].VelocityRealizedVol30 - stockPrices[ticker][prevDate].VelocityRealizedVol30
-				singleStock.RealizedVolAccel60 = stockPrices[ticker][int64Date].VelocityRealizedVol60 - stockPrices[ticker][prevDate].VelocityRealizedVol60
-				singleStock.RealizedVolAccel90 = stockPrices[ticker][int64Date].VelocityRealizedVol90 - stockPrices[ticker][prevDate].VelocityRealizedVol90
+				singleStock.RealizedVolAccelShort = stockPrices[ticker][int64Date].VelocityRealizedVolShort - stockPrices[ticker][prevDate].VelocityRealizedVolShort
+				singleStock.RealizedVolAccelMed = stockPrices[ticker][int64Date].VelocityRealizedVolMed - stockPrices[ticker][prevDate].VelocityRealizedVolMed
+				singleStock.RealizedVolAccelLong = stockPrices[ticker][int64Date].VelocityRealizedVolLong - stockPrices[ticker][prevDate].VelocityRealizedVolLong
 				singleStock.PriceAccel = stockPrices[ticker][int64Date].PriceVelocity - stockPrices[ticker][prevDate].PriceVelocity
 			}
 			stockPrices[ticker][int64Date] = singleStock
@@ -536,21 +536,21 @@ func GetAvgVolume(stockPrices map[string]map[int64]SingleStockCandle) (stockData
 				for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
 					volumesShort = append(volumesShort, stockPrices[ticker][reverseDateKeys[shortIndex]].Volume)
 				}
-				stockCandle.AvgVolume30 = CalculateAvgVolume(volumesShort)
+				stockCandle.AvgVolumeShort = CalculateAvgVolume(volumesShort)
 			}
 			if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
 				var volumesMed []float64
 				for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
 					volumesMed = append(volumesMed, stockPrices[ticker][reverseDateKeys[medIndex]].Volume)
 				}
-				stockCandle.AvgVolume60 = CalculateAvgVolume(volumesMed)
+				stockCandle.AvgVolumeMed = CalculateAvgVolume(volumesMed)
 			}
 			if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
 				var volumesLong []float64
 				for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
 					volumesLong = append(volumesLong, stockPrices[ticker][reverseDateKeys[longIndex]].Volume)
 				}
-				stockCandle.AvgVolume90 = CalculateAvgVolume(volumesLong)
+				stockCandle.AvgVolumeLong = CalculateAvgVolume(volumesLong)
 			}
 			stockPrices[ticker][date] = stockCandle
 		}
@@ -573,14 +573,14 @@ func CalculateAvgVolumeRatios(stockPrices map[string]map[int64]SingleStockCandle
 	for ticker := range stockPrices {
 		for int64Date := range stockPrices[ticker] {
 			stockPriceData := stockPrices[ticker][int64Date]
-			if stockPrices[ticker][int64Date].AvgVolume30 != 0.0 {
-				stockPriceData.AvgVolumeRatio30 = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolume30
+			if stockPrices[ticker][int64Date].AvgVolumeShort != 0.0 {
+				stockPriceData.AvgVolumeRatioShort = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolumeShort
 			}
-			if stockPrices[ticker][int64Date].AvgVolume60 != 0.0 {
-				stockPriceData.AvgVolumeRatio60 = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolume60
+			if stockPrices[ticker][int64Date].AvgVolumeMed != 0.0 {
+				stockPriceData.AvgVolumeRatioMed = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolumeMed
 			}
-			if stockPrices[ticker][int64Date].AvgVolume90 != 0.0 {
-				stockPriceData.AvgVolumeRatio90 = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolume90
+			if stockPrices[ticker][int64Date].AvgVolumeLong != 0.0 {
+				stockPriceData.AvgVolumeRatioLong = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolumeLong
 			}
 			stockPrices[ticker][int64Date] = stockPriceData
 		}
@@ -592,16 +592,16 @@ func CalculateVolumeAdjustedRiskRanges(stockPrices map[string]map[int64]SingleSt
 	for ticker := range stockPrices {
 		for day := range stockPrices[ticker] {
 			dailyTicker := stockPrices[ticker][day]
-			if stockPrices[ticker][day].RealizedVolatility30 != 0.0 {
-				adjVolatility30 := stockPrices[ticker][day].RealizedVolatility30 / stockPrices[ticker][day].AvgVolumeRatio30
+			if stockPrices[ticker][day].RealizedVolatilityShort != 0.0 {
+				adjVolatility30 := stockPrices[ticker][day].RealizedVolatilityShort / stockPrices[ticker][day].AvgVolumeRatioShort
 				dailyTicker.TradeRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility30, SHORTDURATION, ticker)
 			}
-			if stockPrices[ticker][day].RealizedVolatility60 != 0.0 {
-				adjVolatility60 := stockPrices[ticker][day].RealizedVolatility60 / stockPrices[ticker][day].AvgVolumeRatio60
+			if stockPrices[ticker][day].RealizedVolatilityMed != 0.0 {
+				adjVolatility60 := stockPrices[ticker][day].RealizedVolatilityMed / stockPrices[ticker][day].AvgVolumeRatioMed
 				dailyTicker.TrendRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility60, MEDIUMDURATION, ticker)
 			}
-			if stockPrices[ticker][day].RealizedVolatility90 != 0.0 {
-				adjVolatility90 := stockPrices[ticker][day].RealizedVolatility90 / stockPrices[ticker][day].AvgVolumeRatio90
+			if stockPrices[ticker][day].RealizedVolatilityLong != 0.0 {
+				adjVolatility90 := stockPrices[ticker][day].RealizedVolatilityLong / stockPrices[ticker][day].AvgVolumeRatioLong
 				dailyTicker.TailRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility90, LONGDURATION, ticker)
 			}
 			stockPrices[ticker][day] = dailyTicker
@@ -660,25 +660,25 @@ func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stock
 					shortVolLow  = 0.0
 				)
 				for shortIndex := index; reverseDateKeys[shortIndex] >= shortDurationStartMilli; shortIndex++ {
-					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > shortVolHigh {
-						shortVolHigh = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatilityShort > shortVolHigh {
+						shortVolHigh = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatilityShort
 					}
-					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 < shortVolLow &&
-						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 {
-						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+					if stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatilityShort < shortVolLow &&
+						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatilityShort > 0.0 {
+						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatilityShort
 					} else if shortVolLow == 0.0 &&
-						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30 > 0.0 {
-						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatility30
+						stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatilityShort > 0.0 {
+						shortVolLow = stockPrices[ticker][reverseDateKeys[shortIndex]].RealizedVolatilityShort
 					}
 				}
-				stockCandle.RVolHigh30 = shortVolHigh
-				stockCandle.RVolLow30 = shortVolLow
-				shortRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh30, stockCandle.RVolLow30,
-					stockCandle.RealizedVolatility30)
+				stockCandle.RVolHighShort = shortVolHigh
+				stockCandle.RVolLowShort = shortVolLow
+				shortRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHighShort, stockCandle.RVolLowShort,
+					stockCandle.RealizedVolatilityShort)
 				if err != nil {
 					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
 				}
-				stockCandle.RVolPercent30 = shortRVolPercent
+				stockCandle.RVolPercentShort = shortRVolPercent
 			}
 			if index+MEDIUMDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= medDurationStartMilli {
 				var (
@@ -686,25 +686,25 @@ func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stock
 					medVolLow  = 0.0
 				)
 				for medIndex := index; reverseDateKeys[medIndex] >= medDurationStartMilli; medIndex++ {
-					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > medVolHigh {
-						medVolHigh = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatilityMed > medVolHigh {
+						medVolHigh = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatilityMed
 					}
-					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 < medVolLow &&
-						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 {
-						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+					if stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatilityMed < medVolLow &&
+						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatilityMed > 0.0 {
+						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatilityMed
 					} else if medVolLow == 0.0 &&
-						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60 > 0.0 {
-						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatility60
+						stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatilityMed > 0.0 {
+						medVolLow = stockPrices[ticker][reverseDateKeys[medIndex]].RealizedVolatilityMed
 					}
 				}
-				stockCandle.RVolHigh60 = medVolHigh
-				stockCandle.RVolLow60 = medVolLow
-				medRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh60, stockCandle.RVolLow60,
-					stockCandle.RealizedVolatility60)
+				stockCandle.RVolHighMed = medVolHigh
+				stockCandle.RVolLowMed = medVolLow
+				medRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHighMed, stockCandle.RVolLowMed,
+					stockCandle.RealizedVolatilityMed)
 				if err != nil {
 					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
 				}
-				stockCandle.RVolPercent60 = medRVolPercent
+				stockCandle.RVolPercentMed = medRVolPercent
 			}
 			if index+LONGDURATION < len(reverseDateKeys)-1 && reverseDateKeys[index] >= longDurationStartMilli {
 				var (
@@ -712,25 +712,25 @@ func GetRelHighLowVol(stockPrices map[string]map[int64]SingleStockCandle) (stock
 					longVolLow  = 0.0
 				)
 				for longIndex := index; reverseDateKeys[longIndex] >= longDurationStartMilli; longIndex++ {
-					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > longVolHigh {
-						longVolHigh = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatilityLong > longVolHigh {
+						longVolHigh = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatilityLong
 					}
-					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 < longVolLow &&
-						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 {
-						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+					if stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatilityLong < longVolLow &&
+						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatilityLong > 0.0 {
+						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatilityLong
 					} else if longVolLow == 0.0 &&
-						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90 > 0.0 {
-						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatility90
+						stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatilityLong > 0.0 {
+						longVolLow = stockPrices[ticker][reverseDateKeys[longIndex]].RealizedVolatilityLong
 					}
 				}
-				stockCandle.RVolHigh90 = longVolHigh
-				stockCandle.RVolLow90 = longVolLow
-				longRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHigh90, stockCandle.RVolLow90,
-					stockCandle.RealizedVolatility90)
+				stockCandle.RVolHighLong = longVolHigh
+				stockCandle.RVolLowLong = longVolLow
+				longRVolPercent, err := calculateRVolPercentRange(stockCandle.RVolHighLong, stockCandle.RVolLowLong,
+					stockCandle.RealizedVolatilityLong)
 				if err != nil {
 					fmt.Printf("rVol percent would result in an error. msg:%e\n", err)
 				}
-				stockCandle.RVolPercent90 = longRVolPercent
+				stockCandle.RVolPercentLong = longRVolPercent
 			}
 			stockPrices[ticker][date] = stockCandle
 		}
@@ -750,12 +750,12 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 	for ticker := range stockPrices {
 		for dateInt64 := range stockPrices[ticker] {
 			singleTickerData := stockPrices[ticker][dateInt64]
-			if len(stockPrices[ticker][dateInt64].ThirtyDaysPrices) > 0 {
+			if len(stockPrices[ticker][dateInt64].ShortPrices) > 0 {
 				var shortClosingPriceXValsSlice []float64
 				var shortClosingPriceYValsSlice []float64
 				shortDurationIndex := 0
-				for dateString := range stockPrices[ticker][dateInt64].ThirtyDaysPrices {
-					shortClosingPriceYValsSlice = append(shortClosingPriceYValsSlice, stockPrices[ticker][dateInt64].ThirtyDaysPrices[dateString])
+				for dateString := range stockPrices[ticker][dateInt64].ShortPrices {
+					shortClosingPriceYValsSlice = append(shortClosingPriceYValsSlice, stockPrices[ticker][dateInt64].ShortPrices[dateString])
 					shortDurationIndex++
 					shortClosingPriceXValsSlice = append(shortClosingPriceXValsSlice, float64(shortDurationIndex))
 				}
@@ -774,12 +774,12 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				singleTickerData.SlopeShortDuration = 0.0
 			}
 
-			if len(stockPrices[ticker][dateInt64].SixtyDaysPrices) > 0 {
+			if len(stockPrices[ticker][dateInt64].MedPrices) > 0 {
 				var medClosingPriceXValsSlice []float64
 				var medClosingPriceYValsSlice []float64
 				medDurationIndex := 0
-				for dateString := range stockPrices[ticker][dateInt64].SixtyDaysPrices {
-					medClosingPriceYValsSlice = append(medClosingPriceYValsSlice, stockPrices[ticker][dateInt64].SixtyDaysPrices[dateString])
+				for dateString := range stockPrices[ticker][dateInt64].MedPrices {
+					medClosingPriceYValsSlice = append(medClosingPriceYValsSlice, stockPrices[ticker][dateInt64].MedPrices[dateString])
 					medDurationIndex++
 					medClosingPriceXValsSlice = append(medClosingPriceXValsSlice, float64(medDurationIndex))
 				}
@@ -795,12 +795,12 @@ func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle
 				singleTickerData.SlopeMedDuration = 0.0
 			}
 
-			if len(stockPrices[ticker][dateInt64].NinetyDaysPrices) > 0 {
+			if len(stockPrices[ticker][dateInt64].LongPrices) > 0 {
 				var longClosingPriceXValsSlice []float64
 				var longClosingPriceYValsSlice []float64
 				longDurationIndex := 0
-				for dateString := range stockPrices[ticker][dateInt64].NinetyDaysPrices {
-					longClosingPriceYValsSlice = append(longClosingPriceYValsSlice, stockPrices[ticker][dateInt64].NinetyDaysPrices[dateString])
+				for dateString := range stockPrices[ticker][dateInt64].LongPrices {
+					longClosingPriceYValsSlice = append(longClosingPriceYValsSlice, stockPrices[ticker][dateInt64].LongPrices[dateString])
 					longDurationIndex++
 					longClosingPriceXValsSlice = append(longClosingPriceXValsSlice, float64(longDurationIndex))
 				}
