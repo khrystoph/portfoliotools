@@ -418,18 +418,13 @@ func calculateVolatility(volDatesArray []int64,
 	return priceMap, realizedVolPeriod
 }
 
-func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+func CalculateRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, duration int) (stockPricesMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		for day := range stockPrices[ticker] {
 			dailyTicker := stockPrices[ticker][day]
-			if stockPrices[ticker][day].RealizedVolatilityShort != 0.0 {
-				dailyTicker.TradeRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatilityShort, SHORTDURATION, ticker)
-			}
-			if stockPrices[ticker][day].RealizedVolatilityMed != 0.0 {
-				dailyTicker.TrendRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatilityMed, MEDIUMDURATION, ticker)
-			}
-			if stockPrices[ticker][day].RealizedVolatilityLong != 0.0 {
-				dailyTicker.TailRange = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, stockPrices[ticker][day].RealizedVolatilityLong, LONGDURATION, ticker)
+			if rv := getRVol(stockPrices[ticker][day], duration); rv != 0.0 {
+				setRiskRange(&dailyTicker, duration,
+					calculateRiskRange(stockPrices[ticker][day].WeightedVolume, rv, float64(duration), ticker))
 			}
 			stockPrices[ticker][day] = dailyTicker
 		}
@@ -543,18 +538,13 @@ func CalculateAvgVolume(periodicVolumes []float64) (avgVolume float64) {
 
 // CalculateAvgVolumeRatios takes the current day's short, medium, and long duration volume averages and compares them
 // to the current day's volume to get a ratio for calculating volume adjusted risk ranges
-func CalculateAvgVolumeRatios(stockPrices map[string]map[int64]SingleStockCandle) (stockData map[string]map[int64]SingleStockCandle) {
+func CalculateAvgVolumeRatios(stockPrices map[string]map[int64]SingleStockCandle, duration int) (stockData map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		for int64Date := range stockPrices[ticker] {
 			stockPriceData := stockPrices[ticker][int64Date]
-			if stockPrices[ticker][int64Date].AvgVolumeShort != 0.0 {
-				stockPriceData.AvgVolumeRatioShort = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolumeShort
-			}
-			if stockPrices[ticker][int64Date].AvgVolumeMed != 0.0 {
-				stockPriceData.AvgVolumeRatioMed = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolumeMed
-			}
-			if stockPrices[ticker][int64Date].AvgVolumeLong != 0.0 {
-				stockPriceData.AvgVolumeRatioLong = stockPrices[ticker][int64Date].Volume / stockPrices[ticker][int64Date].AvgVolumeLong
+			if getAvgVol(stockPrices[ticker][int64Date], duration) != 0.0 {
+				setAvgVolRatio(&stockPriceData, duration,
+					stockPrices[ticker][int64Date].Volume/getAvgVol(stockPrices[ticker][int64Date], duration))
 			}
 			stockPrices[ticker][int64Date] = stockPriceData
 		}
@@ -562,21 +552,16 @@ func CalculateAvgVolumeRatios(stockPrices map[string]map[int64]SingleStockCandle
 	return stockPrices
 }
 
-func CalculateVolumeAdjustedRiskRanges(stockPrices map[string]map[int64]SingleStockCandle) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+func CalculateVolumeAdjustedRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, duration int) (stockPricesMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		for day := range stockPrices[ticker] {
 			dailyTicker := stockPrices[ticker][day]
-			if stockPrices[ticker][day].RealizedVolatilityShort != 0.0 {
-				adjVolatility30 := stockPrices[ticker][day].RealizedVolatilityShort / stockPrices[ticker][day].AvgVolumeRatioShort
-				dailyTicker.TradeRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility30, SHORTDURATION, ticker)
-			}
-			if stockPrices[ticker][day].RealizedVolatilityMed != 0.0 {
-				adjVolatility60 := stockPrices[ticker][day].RealizedVolatilityMed / stockPrices[ticker][day].AvgVolumeRatioMed
-				dailyTicker.TrendRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility60, MEDIUMDURATION, ticker)
-			}
-			if stockPrices[ticker][day].RealizedVolatilityLong != 0.0 {
-				adjVolatility90 := stockPrices[ticker][day].RealizedVolatilityLong / stockPrices[ticker][day].AvgVolumeRatioLong
-				dailyTicker.TailRangeAdj = calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVolatility90, LONGDURATION, ticker)
+			rv := getRVol(stockPrices[ticker][day], duration)
+			ratio := getAvgVolRatio(stockPrices[ticker][day], duration)
+			if rv != 0.0 {
+				adjVol := rv / ratio
+				setAdjRiskRange(&dailyTicker, duration,
+					calculateRiskRange(stockPrices[ticker][day].WeightedVolume, adjVol, float64(duration), ticker))
 			}
 			stockPrices[ticker][day] = dailyTicker
 		}
@@ -591,20 +576,17 @@ func CalculateProbabilityAdjRiskRange(riskRange map[string]float64, probabilityA
 	return tempRiskRange
 }
 
-func GetProbAdjRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, probabilityAdjustment float64) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+func GetProbAdjRiskRanges(stockPrices map[string]map[int64]SingleStockCandle, duration int, probabilityAdjustment float64) (stockPricesMap map[string]map[int64]SingleStockCandle) {
 	if probabilityAdjustment == 0.0 {
 		probabilityAdjustment = .1
 	}
 	for ticker := range stockPrices {
 		for int64Date := range stockPrices[ticker] {
 			stockPrice := stockPrices[ticker][int64Date]
-			stockPrice.PTradeRange = CalculateProbabilityAdjRiskRange(stockPrice.TradeRange, probabilityAdjustment)
-			stockPrice.PTrendRange = CalculateProbabilityAdjRiskRange(stockPrice.TrendRange, probabilityAdjustment)
-			stockPrice.PTailRange = CalculateProbabilityAdjRiskRange(stockPrice.TailRange, probabilityAdjustment)
-			stockPrice.PTradeRangeAdj = CalculateProbabilityAdjRiskRange(stockPrice.TradeRangeAdj, probabilityAdjustment)
-			stockPrice.PTrendRangeAdj = CalculateProbabilityAdjRiskRange(stockPrice.TrendRangeAdj, probabilityAdjustment)
-			stockPrice.PTailRangeAdj = CalculateProbabilityAdjRiskRange(stockPrice.TailRangeAdj, probabilityAdjustment)
-
+			setProbRiskRange(&stockPrice, duration,
+				CalculateProbabilityAdjRiskRange(getRiskRange(stockPrice, duration), probabilityAdjustment))
+			setProbAdjRiskRange(&stockPrice, duration,
+				CalculateProbabilityAdjRiskRange(getAdjRiskRange(stockPrice, duration), probabilityAdjustment))
 			stockPrices[ticker][int64Date] = stockPrice
 		}
 	}
@@ -658,77 +640,33 @@ func calculateRVolPercentRange(rVolHigh, rVolLow, rVol float64) (rvolPercent flo
 	return (rVol - rVolLow) / (rVolHigh - rVolLow), nil
 }
 
-func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
+func GetLinearRegressionSlope(stockPrices map[string]map[int64]SingleStockCandle, duration int, isDebug bool) (stockPricesMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		for dateInt64 := range stockPrices[ticker] {
 			singleTickerData := stockPrices[ticker][dateInt64]
-			if len(stockPrices[ticker][dateInt64].ShortPrices) > 0 {
-				var shortClosingPriceXValsSlice []float64
-				var shortClosingPriceYValsSlice []float64
-				shortDurationIndex := 0
-				for dateString := range stockPrices[ticker][dateInt64].ShortPrices {
-					shortClosingPriceYValsSlice = append(shortClosingPriceYValsSlice, stockPrices[ticker][dateInt64].ShortPrices[dateString])
-					shortDurationIndex++
-					shortClosingPriceXValsSlice = append(shortClosingPriceXValsSlice, float64(shortDurationIndex))
+			prices := getPrices(singleTickerData, duration)
+			if len(prices) > 0 {
+				var xVals []float64
+				var yVals []float64
+				i := 0
+				for dateString := range prices {
+					yVals = append(yVals, prices[dateString])
+					i++
+					xVals = append(xVals, float64(i))
 				}
-				shortSlope, shortIntercept, err := calcLinearRegression(shortClosingPriceXValsSlice, shortClosingPriceYValsSlice)
+				slope, intercept, err := calcLinearRegression(xVals, yVals)
 				if err != nil {
 					log.Printf("error getting linear regression: %v", err)
+				} else {
+					if isDebug {
+						fmt.Printf("Date: %s duration: %d intercept: %f\n",
+							stockPrices[ticker][dateInt64].Timestamp, duration, intercept)
+					}
+					setSlope(&singleTickerData, duration, slope)
 				}
-				if isDebug {
-					fmt.Printf("Date: %s", stockPrices[ticker][dateInt64].Timestamp)
-					fmt.Printf("short ClosingPrices: %v\n", shortClosingPriceYValsSlice)
-					fmt.Printf("short XVals: %v\n", shortClosingPriceXValsSlice)
-					fmt.Printf("ShortDuration linear regression intercept: %f\n", shortIntercept)
-				}
-				singleTickerData.SlopeShortDuration = shortSlope
 			} else {
-				singleTickerData.SlopeShortDuration = 0.0
+				setSlope(&singleTickerData, duration, 0.0)
 			}
-
-			if len(stockPrices[ticker][dateInt64].MedPrices) > 0 {
-				var medClosingPriceXValsSlice []float64
-				var medClosingPriceYValsSlice []float64
-				medDurationIndex := 0
-				for dateString := range stockPrices[ticker][dateInt64].MedPrices {
-					medClosingPriceYValsSlice = append(medClosingPriceYValsSlice, stockPrices[ticker][dateInt64].MedPrices[dateString])
-					medDurationIndex++
-					medClosingPriceXValsSlice = append(medClosingPriceXValsSlice, float64(medDurationIndex))
-				}
-				medSlope, medIntercept, err := calcLinearRegression(medClosingPriceXValsSlice, medClosingPriceYValsSlice)
-				if err != nil {
-					log.Printf("error getting linear regression: %v", err)
-				}
-				if isDebug {
-					fmt.Printf("MedDuration linear regression intercept: %f\n", medIntercept)
-				}
-				singleTickerData.SlopeMedDuration = medSlope
-			} else {
-				singleTickerData.SlopeMedDuration = 0.0
-			}
-
-			if len(stockPrices[ticker][dateInt64].LongPrices) > 0 {
-				var longClosingPriceXValsSlice []float64
-				var longClosingPriceYValsSlice []float64
-				longDurationIndex := 0
-				for dateString := range stockPrices[ticker][dateInt64].LongPrices {
-					longClosingPriceYValsSlice = append(longClosingPriceYValsSlice, stockPrices[ticker][dateInt64].LongPrices[dateString])
-					longDurationIndex++
-					longClosingPriceXValsSlice = append(longClosingPriceXValsSlice, float64(longDurationIndex))
-				}
-				longSlope, longIntercept, err := calcLinearRegression(longClosingPriceXValsSlice, longClosingPriceYValsSlice)
-				if err != nil {
-					log.Printf("error getting linear regression: %v", err)
-					return stockPrices
-				}
-				if isDebug {
-					fmt.Printf("LongDuration linear regression intercept: %f\n", longIntercept)
-				}
-				singleTickerData.SlopeLongDuration = longSlope
-			} else {
-				singleTickerData.SlopeLongDuration = 0.0
-			}
-
 			stockPrices[ticker][dateInt64] = singleTickerData
 		}
 	}

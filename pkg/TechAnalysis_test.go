@@ -499,3 +499,101 @@ func TestGetRelHighLowVol_PopulatesOnlyTargetDuration(t *testing.T) {
 		t.Error("expected at least one candle with RVolHighShort populated")
 	}
 }
+
+func TestCalculateRiskRanges_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 90)
+	data = StoreRealizedVols(data, SHORTDURATION)
+	result := CalculateRiskRanges(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if len(c.TradeRange) > 0 {
+				hasShort = true
+			}
+			if len(c.TrendRange) > 0 {
+				t.Errorf("TrendRange should not be set by SHORTDURATION call")
+			}
+			if len(c.TailRange) > 0 {
+				t.Errorf("TailRange should not be set by SHORTDURATION call")
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with TradeRange populated")
+	}
+}
+
+func TestCalculateAvgVolumeRatios_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 90)
+	data = GetAvgVolume(data, SHORTDURATION)
+	result := CalculateAvgVolumeRatios(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if c.AvgVolumeRatioShort != 0 {
+				hasShort = true
+			}
+			if c.AvgVolumeRatioMed != 0 {
+				t.Errorf("AvgVolumeRatioMed should not be set by SHORTDURATION call: got %v", c.AvgVolumeRatioMed)
+			}
+			if c.AvgVolumeRatioLong != 0 {
+				t.Errorf("AvgVolumeRatioLong should not be set by SHORTDURATION call: got %v", c.AvgVolumeRatioLong)
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with AvgVolumeRatioShort populated")
+	}
+}
+
+func TestCalculateVolumeAdjustedRiskRanges_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 90)
+	data = StoreRealizedVols(data, SHORTDURATION)
+	data = GetAvgVolume(data, SHORTDURATION)
+	data = CalculateAvgVolumeRatios(data, SHORTDURATION)
+	result := CalculateVolumeAdjustedRiskRanges(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if len(c.TradeRangeAdj) > 0 {
+				hasShort = true
+			}
+			if len(c.TrendRangeAdj) > 0 {
+				t.Errorf("TrendRangeAdj should not be set by SHORTDURATION call")
+			}
+			if len(c.TailRangeAdj) > 0 {
+				t.Errorf("TailRangeAdj should not be set by SHORTDURATION call")
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with TradeRangeAdj populated")
+	}
+}
+
+func TestGetProbAdjRiskRanges_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 90)
+	data = StoreRealizedVols(data, SHORTDURATION)
+	data = GetAvgVolume(data, SHORTDURATION)
+	data = CalculateAvgVolumeRatios(data, SHORTDURATION)
+	data = CalculateRiskRanges(data, SHORTDURATION)
+	data = CalculateVolumeAdjustedRiskRanges(data, SHORTDURATION)
+	result := GetProbAdjRiskRanges(data, SHORTDURATION, 0.1)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if len(c.PTradeRange) > 0 {
+				hasShort = true
+			}
+			if len(c.PTrendRange) > 0 {
+				t.Errorf("PTrendRange should not be set by SHORTDURATION call")
+			}
+			if len(c.PTailRange) > 0 {
+				t.Errorf("PTailRange should not be set by SHORTDURATION call")
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with PTradeRange populated")
+	}
+}
