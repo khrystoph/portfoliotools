@@ -445,24 +445,21 @@ func calculateRiskRange(price, volatility, riskRangeDuration float64, ticker str
 	return
 }
 
-func CalculateVelocities(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+func CalculateVelocities(stockPrices map[string]map[int64]SingleStockCandle, duration int) (stockPriceMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var prevDate = int64(0)
 		var int64DateArray []int64
 		for int64Date := range stockPrices[ticker] {
 			int64DateArray = append(int64DateArray, int64Date)
 		}
-
 		sort.Slice(int64DateArray, func(i, j int) bool {
 			return int64DateArray[i] < int64DateArray[j]
 		})
-
 		for _, int64Date := range int64DateArray {
 			singleStock := stockPrices[ticker][int64Date]
 			if prevDate != 0 {
-				singleStock.VelocityRealizedVolShort = stockPrices[ticker][int64Date].RealizedVolatilityShort - stockPrices[ticker][prevDate].RealizedVolatilityShort
-				singleStock.VelocityRealizedVolMed = stockPrices[ticker][int64Date].RealizedVolatilityMed - stockPrices[ticker][prevDate].RealizedVolatilityMed
-				singleStock.VelocityRealizedVolLong = stockPrices[ticker][int64Date].RealizedVolatilityLong - stockPrices[ticker][prevDate].RealizedVolatilityLong
+				setRVolVel(&singleStock, duration,
+					getRVol(stockPrices[ticker][int64Date], duration)-getRVol(stockPrices[ticker][prevDate], duration))
 				singleStock.PriceVelocity = stockPrices[ticker][int64Date].Close - stockPrices[ticker][prevDate].Close
 			}
 			stockPrices[ticker][int64Date] = singleStock
@@ -473,24 +470,21 @@ func CalculateVelocities(stockPrices map[string]map[int64]SingleStockCandle) (st
 	return stockPriceMap
 }
 
-func CalculateAccelerations(stockPrices map[string]map[int64]SingleStockCandle) (stockPriceMap map[string]map[int64]SingleStockCandle) {
+func CalculateAccelerations(stockPrices map[string]map[int64]SingleStockCandle, duration int) (stockPriceMap map[string]map[int64]SingleStockCandle) {
 	for ticker := range stockPrices {
 		var prevDate = int64(0)
 		var int64DateArray []int64
 		for int64Date := range stockPrices[ticker] {
 			int64DateArray = append(int64DateArray, int64Date)
 		}
-
 		sort.Slice(int64DateArray, func(i, j int) bool {
 			return int64DateArray[i] < int64DateArray[j]
 		})
-
 		for _, int64Date := range int64DateArray {
 			singleStock := stockPrices[ticker][int64Date]
 			if prevDate != 0 {
-				singleStock.RealizedVolAccelShort = stockPrices[ticker][int64Date].VelocityRealizedVolShort - stockPrices[ticker][prevDate].VelocityRealizedVolShort
-				singleStock.RealizedVolAccelMed = stockPrices[ticker][int64Date].VelocityRealizedVolMed - stockPrices[ticker][prevDate].VelocityRealizedVolMed
-				singleStock.RealizedVolAccelLong = stockPrices[ticker][int64Date].VelocityRealizedVolLong - stockPrices[ticker][prevDate].VelocityRealizedVolLong
+				setRVolAccel(&singleStock, duration,
+					getRVolVel(stockPrices[ticker][int64Date], duration)-getRVolVel(stockPrices[ticker][prevDate], duration))
 				singleStock.PriceAccel = stockPrices[ticker][int64Date].PriceVelocity - stockPrices[ticker][prevDate].PriceVelocity
 			}
 			stockPrices[ticker][int64Date] = singleStock

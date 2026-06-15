@@ -597,3 +597,50 @@ func TestGetProbAdjRiskRanges_PopulatesOnlyTargetDuration(t *testing.T) {
 		t.Error("expected at least one candle with PTradeRange populated")
 	}
 }
+
+func TestCalculateVelocities_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 60)
+	data = StoreRealizedVols(data, SHORTDURATION)
+	result := CalculateVelocities(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if c.VelocityRealizedVolShort != 0 {
+				hasShort = true
+			}
+			if c.VelocityRealizedVolMed != 0 {
+				t.Errorf("VelocityRealizedVolMed should not be set by SHORTDURATION call: got %v", c.VelocityRealizedVolMed)
+			}
+			if c.VelocityRealizedVolLong != 0 {
+				t.Errorf("VelocityRealizedVolLong should not be set by SHORTDURATION call: got %v", c.VelocityRealizedVolLong)
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with VelocityRealizedVolShort populated")
+	}
+}
+
+func TestCalculateAccelerations_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 60)
+	data = StoreRealizedVols(data, SHORTDURATION)
+	data = CalculateVelocities(data, SHORTDURATION)
+	result := CalculateAccelerations(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if c.RealizedVolAccelShort != 0 {
+				hasShort = true
+			}
+			if c.RealizedVolAccelMed != 0 {
+				t.Errorf("RealizedVolAccelMed should not be set by SHORTDURATION call: got %v", c.RealizedVolAccelMed)
+			}
+			if c.RealizedVolAccelLong != 0 {
+				t.Errorf("RealizedVolAccelLong should not be set by SHORTDURATION call: got %v", c.RealizedVolAccelLong)
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with RealizedVolAccelShort populated")
+	}
+}
