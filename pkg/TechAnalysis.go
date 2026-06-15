@@ -354,6 +354,18 @@ func calculateVariance(returns []float64) float64 {
 	return gonum.Variance(returns, nil)
 }
 
+func collectWindowDates(reverseDateKeys []int64, index int, duration int) ([]int64, bool) {
+	durationStartMilli := time.UnixMilli(reverseDateKeys[index]).AddDate(0, 0, -1*duration).UnixMilli()
+	if index+duration >= len(reverseDateKeys)-1 || reverseDateKeys[index] < durationStartMilli {
+		return nil, false
+	}
+	var windowDates []int64
+	for i := index; i < len(reverseDateKeys) && reverseDateKeys[i] >= durationStartMilli; i++ {
+		windowDates = append(windowDates, reverseDateKeys[i])
+	}
+	return windowDates, true
+}
+
 // calculateMean calculates the arithmetic mean of a float64 slice of inputs and returns the resulting mean
 
 /*

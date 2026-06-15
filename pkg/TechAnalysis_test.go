@@ -397,3 +397,38 @@ func TestCalculateTrendDirections(t *testing.T) {
 		})
 	}
 }
+
+func TestCollectWindowDates(t *testing.T) {
+	day := int64(24 * 60 * 60 * 1000)
+	now := (time.Now().UnixMilli() / day) * day
+
+	dates := make([]int64, 60)
+	for i := 0; i < 60; i++ {
+		dates[i] = now - int64(i)*day
+	}
+
+	window, ok := collectWindowDates(dates, 0, SHORTDURATION)
+	if !ok {
+		t.Fatal("expected valid window at index 0 with 60 dates and SHORTDURATION=30")
+	}
+	if len(window) == 0 {
+		t.Fatal("expected non-empty window")
+	}
+	cutoff := dates[0] - int64(SHORTDURATION)*day
+	for _, d := range window {
+		if d < cutoff {
+			t.Errorf("date %v is outside SHORTDURATION window (cutoff %v)", d, cutoff)
+		}
+	}
+
+	_, ok = collectWindowDates(dates, 58, SHORTDURATION)
+	if ok {
+		t.Error("expected invalid window near end of slice")
+	}
+
+	shortSlice := dates[:10]
+	_, ok = collectWindowDates(shortSlice, 0, LONGDURATION)
+	if ok {
+		t.Error("expected invalid window: slice shorter than LONGDURATION")
+	}
+}
