@@ -432,3 +432,70 @@ func TestCollectWindowDates(t *testing.T) {
 		t.Error("expected invalid window: slice shorter than LONGDURATION")
 	}
 }
+
+func TestStoreRealizedVols_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 90)
+	result := StoreRealizedVols(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if c.RealizedVolatilityShort != 0 {
+				hasShort = true
+			}
+			if c.RealizedVolatilityMed != 0 {
+				t.Errorf("Med should not be set by SHORTDURATION call: got %v", c.RealizedVolatilityMed)
+			}
+			if c.RealizedVolatilityLong != 0 {
+				t.Errorf("Long should not be set by SHORTDURATION call: got %v", c.RealizedVolatilityLong)
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with RealizedVolatilityShort populated")
+	}
+}
+
+func TestGetAvgVolume_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 90)
+	result := GetAvgVolume(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if c.AvgVolumeShort != 0 {
+				hasShort = true
+			}
+			if c.AvgVolumeMed != 0 {
+				t.Errorf("AvgVolumeMed should not be set by SHORTDURATION call: got %v", c.AvgVolumeMed)
+			}
+			if c.AvgVolumeLong != 0 {
+				t.Errorf("AvgVolumeLong should not be set by SHORTDURATION call: got %v", c.AvgVolumeLong)
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with AvgVolumeShort populated")
+	}
+}
+
+func TestGetRelHighLowVol_PopulatesOnlyTargetDuration(t *testing.T) {
+	data := makeTestData("AAPL", 90)
+	data = StoreRealizedVols(data, SHORTDURATION)
+	result := GetRelHighLowVol(data, SHORTDURATION)
+	hasShort := false
+	for _, candles := range result {
+		for _, c := range candles {
+			if c.RVolHighShort != 0 {
+				hasShort = true
+			}
+			if c.RVolHighMed != 0 {
+				t.Errorf("RVolHighMed should not be set by SHORTDURATION call: got %v", c.RVolHighMed)
+			}
+			if c.RVolHighLong != 0 {
+				t.Errorf("RVolHighLong should not be set by SHORTDURATION call: got %v", c.RVolHighLong)
+			}
+		}
+	}
+	if !hasShort {
+		t.Error("expected at least one candle with RVolHighShort populated")
+	}
+}
