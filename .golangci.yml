@@ -1,22 +1,24 @@
+version: "2"
+
 run:
   timeout: 5m
+
+formatters:
+  enable:
+    - gofmt
 
 linters:
   enable:
     - govet
-    - gofmt
-    - gosimple
     - ineffassign
     - staticcheck
-    - unused
   # errcheck disabled until error handling refactor is complete (issue #7)
   disable:
     - errcheck
 
-issues:
-  exclude-rules:
-    # testClient is a debug tool; exclude from strict linting
-    - path: cmd/testClient
-      linters:
-        - staticcheck
-        - unused
+  exclusions:
+    rules:
+      # testClient is a debug tool; exclude from strict linting
+      - path: cmd/testClient
+        linters:
+          - staticcheck

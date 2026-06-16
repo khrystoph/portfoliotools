@@ -229,7 +229,7 @@ func GetStockPricesAlpaca(clientConfs StockDataConf, ticker, resolution string, 
 			fmt.Printf("results do not exist.\n")
 		}
 		if strings.HasPrefix(originalTicker, "X:") {
-			originalTicker = strings.Replace(originalTicker, "/", "", -1)
+			originalTicker = strings.ReplaceAll(originalTicker, "/", "")
 		}
 		switch originalResolution {
 		case "1T":
@@ -309,7 +309,7 @@ func GetStockPrices(ticker, apiToken, resolution string, startTimeMilli, endTime
 	for iter.Next() {
 		ts := time.Time(iter.Item().Timestamp).UnixMilli()
 		stockPrices[ticker][ts] = SingleStockCandle{
-			Ticker:         strings.Replace(ticker, "X:", "", -1),
+			Ticker:         strings.ReplaceAll(ticker, "X:", ""),
 			Close:          iter.Item().Close,
 			High:           iter.Item().High,
 			Low:            iter.Item().Low,
@@ -680,11 +680,11 @@ func calcLinearRegression(xValues, yValues []float64) (slope, intercept float64,
 		sumX += xValues[i]
 		sumY += yValues[i]
 		sumXY += xValues[i] * yValues[i]
-		sumX2 += math.Pow(xValues[i], 2)
+		sumX2 += xValues[i] * xValues[i]
 	}
 
 	// Calculate slope (m)
-	slope = (n*sumXY - sumX*sumY) / (n*sumX2 - math.Pow(sumX, 2))
+	slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
 
 	// Calculate y-intercept (b)
 	intercept = (sumY - slope*sumX) / n
