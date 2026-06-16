@@ -140,19 +140,40 @@ func main() {
 			}
 		}
 
-		// Call functions to calculate each day's realized volatility, ranges, and adjusted ranges given each duration available (30, 60, 90)
-		tickerData = pkg.StoreRealizedVols(tickerData)
-		tickerData = pkg.GetAvgVolume(tickerData)
-		tickerData = pkg.CalculateAvgVolumeRatios(tickerData)
-		tickerData = pkg.GetRelHighLowVol(tickerData)
-		tickerData = pkg.CalculateRiskRanges(tickerData)
-		tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData)
-		tickerData = pkg.CalculateVelocities(tickerData)
-		tickerData = pkg.CalculateAccelerations(tickerData)
-		tickerData = pkg.GetProbAdjRiskRanges(tickerData, stockDataConfig.RangeAdjustment)
+		// Calculate realized vols, ranges, and adjusted ranges for each duration
+		durations := []int{pkg.SHORTDURATION, pkg.MEDIUMDURATION, pkg.LONGDURATION}
+		for _, d := range durations {
+			tickerData = pkg.StoreRealizedVols(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.GetAvgVolume(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.CalculateAvgVolumeRatios(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.GetRelHighLowVol(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.CalculateRiskRanges(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.CalculateVelocities(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.CalculateAccelerations(tickerData, d)
+		}
+		for _, d := range durations {
+			tickerData = pkg.GetProbAdjRiskRanges(tickerData, d, stockDataConfig.RangeAdjustment)
+		}
 		tickerData = pkg.GetSimpleSlopes(tickerData, debug)
 		tickerData = pkg.CalculateTrendDirections(tickerData, debug)
-		//tickerData = pkg.GetLinearRegressionSlope(tickerData, debug)
+		//tickerData = pkg.GetLinearRegressionSlope(tickerData, pkg.SHORTDURATION, debug)
+		//tickerData = pkg.GetLinearRegressionSlope(tickerData, pkg.MEDIUMDURATION, debug)
+		//tickerData = pkg.GetLinearRegressionSlope(tickerData, pkg.LONGDURATION, debug)
 		tickerStripped := tickerItem
 		if strings.HasPrefix(tickerStripped, "X:") {
 			tickerStripped = strings.Split(tickerStripped, ":")[1]
@@ -179,8 +200,8 @@ func main() {
 					rrHigh = stock[latestDate].PTrendRangeAdj["high"]
 					rrLow = stock[latestDate].PTrendRangeAdj["low"]
 				}
-				rvolpct = stock[latestDate].RVolPercent60
-				avgvolratio = stock[latestDate].AvgVolumeRatio60
+				rvolpct = stock[latestDate].RVolPercentMed
+				avgvolratio = stock[latestDate].AvgVolumeRatioMed
 			case "LONG":
 				if isCrypto {
 					rrHigh = stock[latestDate].TailRangeAdj["high"]
@@ -189,8 +210,8 @@ func main() {
 					rrHigh = stock[latestDate].PTailRangeAdj["high"]
 					rrLow = stock[latestDate].PTailRangeAdj["low"]
 				}
-				rvolpct = stock[latestDate].RVolPercent90
-				avgvolratio = stock[latestDate].AvgVolumeRatio90
+				rvolpct = stock[latestDate].RVolPercentLong
+				avgvolratio = stock[latestDate].AvgVolumeRatioLong
 			case "SHORT":
 				fallthrough
 			default:
@@ -201,8 +222,8 @@ func main() {
 					rrHigh = stock[latestDate].PTradeRangeAdj["high"]
 					rrLow = stock[latestDate].PTradeRangeAdj["low"]
 				}
-				rvolpct = stock[latestDate].RVolPercent30
-				avgvolratio = stock[latestDate].AvgVolumeRatio30
+				rvolpct = stock[latestDate].RVolPercentShort
+				avgvolratio = stock[latestDate].AvgVolumeRatioShort
 			}
 			batchStockRanges[tickerStripped] = pkg.CondensedRangesJSON{
 				Ticker:         tickerStripped,

@@ -125,19 +125,40 @@ func main() {
 		}
 	}
 
-	// Call functions to calculate each day's realized volatility, ranges, and adjusted ranges given each duration available (30, 60, 90)
-	tickerData = pkg.StoreRealizedVols(tickerData)
-	tickerData = pkg.GetRelHighLowVol(tickerData)
-	tickerData = pkg.GetAvgVolume(tickerData)
-	tickerData = pkg.CalculateAvgVolumeRatios(tickerData)
-	tickerData = pkg.CalculateRiskRanges(tickerData)
-	tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData)
-	tickerData = pkg.CalculateVelocities(tickerData)
-	tickerData = pkg.CalculateAccelerations(tickerData)
-	tickerData = pkg.GetProbAdjRiskRanges(tickerData, stockDataConfig.RangeAdjustment)
+	// Calculate realized vols, ranges, and adjusted ranges for each duration
+	durations := []int{pkg.SHORTDURATION, pkg.MEDIUMDURATION, pkg.LONGDURATION}
+	for _, d := range durations {
+		tickerData = pkg.StoreRealizedVols(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.GetRelHighLowVol(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.GetAvgVolume(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.CalculateAvgVolumeRatios(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.CalculateRiskRanges(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.CalculateVolumeAdjustedRiskRanges(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.CalculateVelocities(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.CalculateAccelerations(tickerData, d)
+	}
+	for _, d := range durations {
+		tickerData = pkg.GetProbAdjRiskRanges(tickerData, d, stockDataConfig.RangeAdjustment)
+	}
 	tickerData = pkg.GetSimpleSlopes(tickerData, debug)
 	tickerData = pkg.CalculateTrendDirections(tickerData, debug)
-	//tickerData = pkg.GetLinearRegressionSlope(tickerData, debug)
+	//tickerData = pkg.GetLinearRegressionSlope(tickerData, pkg.SHORTDURATION, debug)
+	//tickerData = pkg.GetLinearRegressionSlope(tickerData, pkg.MEDIUMDURATION, debug)
+	//tickerData = pkg.GetLinearRegressionSlope(tickerData, pkg.LONGDURATION, debug)
 
 	if err != nil {
 		log.Printf("error occurred: %v", err)
