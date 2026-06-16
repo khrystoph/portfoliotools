@@ -13,8 +13,8 @@ linters:
   disable:
     - errcheck
 
-issues:
-  exclude-rules:
+exclusions:
+  rules:
     # testClient is a debug tool; exclude from strict linting
     - path: cmd/testClient
       linters:
