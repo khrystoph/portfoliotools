@@ -13,9 +13,9 @@ linters:
   disable:
     - errcheck
 
-exclusions:
-  rules:
-    # testClient is a debug tool; exclude from strict linting
-    - path: cmd/testClient
-      linters:
-        - staticcheck
+  exclusions:
+    rules:
+      # testClient is a debug tool; exclude from strict linting
+      - path: cmd/testClient
+        linters:
+          - staticcheck
