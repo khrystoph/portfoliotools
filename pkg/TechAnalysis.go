@@ -18,6 +18,12 @@ import (
 	"time"
 )
 
+// NormalizeTicker upper-cases and trims a ticker string so the CLI accepts
+// any mix of upper, lower, or mixed case input.
+func NormalizeTicker(s string) string {
+	return strings.ToUpper(strings.TrimSpace(s))
+}
+
 const DAY = 24
 const YEAR = 365.24
 const LONGDURATION = 180

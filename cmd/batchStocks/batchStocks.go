@@ -108,8 +108,9 @@ func main() {
 	}
 
 	for _, tickerItem := range tickerArray {
+		tickerItem = pkg.NormalizeTicker(tickerItem)
 		isCrypto := false
-		if strings.HasPrefix(strings.ToUpper(tickerItem), "X:") {
+		if strings.HasPrefix(tickerItem, "X:") {
 			isCrypto = true
 		}
 		if stockDataConfig.AlpacaAPIKey != "" {
@@ -128,14 +129,14 @@ func main() {
 				resolution = "1D"
 			}
 
-			tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, strings.ToUpper(tickerItem), resolution, startDateMilli, endDate, debug)
+			tickerData, err = pkg.GetStockPricesAlpaca(stockDataConfig, tickerItem, resolution, startDateMilli, endDate, debug)
 			if err != nil {
 				log.Fatal(err)
 			}
 		} else {
-			tickerData, err = pkg.GetStockPrices(strings.ToUpper(tickerItem), stockDataConfig.PolygonAPIToken, resolution, startDateMilli, endDate)
+			tickerData, err = pkg.GetStockPrices(tickerItem, stockDataConfig.PolygonAPIToken, resolution, startDateMilli, endDate)
 			if err != nil {
-				log.Printf("unable to get stock prices for %s", strings.ToUpper(tickerItem))
+				log.Printf("unable to get stock prices for %s", tickerItem)
 			}
 		}
 
@@ -152,7 +153,7 @@ func main() {
 		tickerData = pkg.GetSimpleSlopes(tickerData, debug)
 		tickerData = pkg.CalculateTrendDirections(tickerData, debug)
 		//tickerData = pkg.GetLinearRegressionSlope(tickerData, debug)
-		tickerStripped := strings.ToUpper(tickerItem)
+		tickerStripped := tickerItem
 		if strings.HasPrefix(tickerStripped, "X:") {
 			tickerStripped = strings.Split(tickerStripped, ":")[1]
 		}
