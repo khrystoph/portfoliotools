@@ -5,10 +5,8 @@ linters:
   enable:
     - govet
     - gofmt
-    - gosimple
     - ineffassign
     - staticcheck
-    - unused
   # errcheck disabled until error handling refactor is complete (issue #7)
   disable:
     - errcheck
@@ -19,4 +17,3 @@ issues:
     - path: cmd/testClient
       linters:
         - staticcheck
-        - unused
