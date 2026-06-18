@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/khrystoph/portfoliotools/pkg"
 	"context"
 	"flag"
 	"fmt"
+	"github.com/khrystoph/portfoliotools/pkg"
 	"google.golang.org/appengine/log"
 	"time"
 )

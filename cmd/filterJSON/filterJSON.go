@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/khrystoph/portfoliotools/pkg"
 	"encoding/json"
 	"flag"
+	"github.com/khrystoph/portfoliotools/pkg"
 	"log"
 	"os"
 	"strings"

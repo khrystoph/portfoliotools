@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/khrystoph/portfoliotools/pkg"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/khrystoph/portfoliotools/pkg"
 	"log"
 	"os"
 	"strings"
