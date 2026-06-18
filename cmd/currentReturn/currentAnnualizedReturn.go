@@ -1,7 +1,7 @@
 package main
 
 import (
-	"cmd/pkg"
+	"github.com/khrystoph/portfoliotools/pkg"
 	"context"
 	"flag"
 	"fmt"
