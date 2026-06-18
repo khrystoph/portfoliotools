@@ -1,11 +1,11 @@
 package main
 
 import (
-	"cmd/pkg"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/khrystoph/portfoliotools/pkg"
 	"log"
 	"os"
 	"strings"

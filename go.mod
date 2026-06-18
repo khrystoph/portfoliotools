@@ -1,4 +1,4 @@
-module cmd
+module github.com/khrystoph/portfoliotools
 
 go 1.24.0
 
