@@ -2,8 +2,6 @@ package db_test
 
 import (
 	"context"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,13 +10,6 @@ import (
 
 	"github.com/khrystoph/portfoliotools/internal/db"
 )
-
-// repoRoot returns the absolute path to the repository root from this test file.
-func repoRoot() string {
-	_, file, _, _ := runtime.Caller(0)
-	// file is .../internal/db/db_test.go — root is two levels up
-	return filepath.Join(filepath.Dir(file), "..", "..")
-}
 
 func TestConnect_Success(t *testing.T) {
 	ctx := context.Background()
@@ -68,7 +59,7 @@ func TestMigrate_RunsAllMigrations(t *testing.T) {
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	require.NoError(t, err)
 
-	migrationsPath := filepath.Join(repoRoot(), "migrations")
+	migrationsPath := "../../migrations"
 	require.NoError(t, db.Migrate(connStr, migrationsPath))
 
 	// Verify all expected tables exist
@@ -108,7 +99,7 @@ func TestMigrate_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run twice — second call must not error
-	migrationsPath := filepath.Join(repoRoot(), "migrations")
+	migrationsPath := "../../migrations"
 	require.NoError(t, db.Migrate(connStr, migrationsPath))
 	require.NoError(t, db.Migrate(connStr, migrationsPath))
 }
