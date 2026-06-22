@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/polygon-io/client-go v1.16.4
 	github.com/xuri/excelize/v2 v2.10.0
-	gonum.org/v1/gonum v0.14.0
+	gonum.org/v1/gonum v0.17.0
 	google.golang.org/appengine v1.6.7
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
