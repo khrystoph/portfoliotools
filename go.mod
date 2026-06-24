@@ -6,7 +6,7 @@ require (
 	github.com/polygon-io/client-go v1.16.18
 	github.com/xuri/excelize/v2 v2.10.1
 	gonum.org/v1/gonum v0.17.0
-	google.golang.org/appengine v1.6.7
+	google.golang.org/appengine v1.6.8
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 
