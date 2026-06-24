@@ -87,6 +87,41 @@ func TestOHLCVStore_UpsertBatch(t *testing.T) {
 	assert.Len(t, rows, 5)
 }
 
+func TestOHLCVStore_UpsertBatch_RollsBackOnError(t *testing.T) {
+	pool := testutil.NewTestDB(t)
+	ts := store.NewTickerStore(pool)
+	os := store.NewOHLCVStore(pool)
+	ctx := context.Background()
+
+	tickerID := setupTickerForOHLCV(t, ts)
+
+	// First candle is valid; second has ticker_id=0 (violates FK constraint)
+	candles := []store.OHLCVDaily{
+		{
+			TickerID:  tickerID,
+			TradeDate: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			Open: 100, High: 105, Low: 98, Close: 102,
+			Volume: 500_000,
+			Source: store.SourceAlpaca,
+		},
+		{
+			TickerID:  0, // invalid — FK violation
+			TradeDate: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
+			Open: 100, High: 105, Low: 98, Close: 102,
+			Volume: 500_000,
+			Source: store.SourceAlpaca,
+		},
+	}
+
+	err := os.UpsertBatch(ctx, candles)
+	assert.Error(t, err, "batch with invalid FK must fail")
+
+	// Entire batch must be rolled back — no rows written
+	rows, err := os.GetRange(ctx, tickerID, 10)
+	require.NoError(t, err)
+	assert.Empty(t, rows, "rollback must leave no rows")
+}
+
 func TestOHLCVStore_GetRange_ReturnsDescendingOrder(t *testing.T) {
 	pool := testutil.NewTestDB(t)
 	ts := store.NewTickerStore(pool)

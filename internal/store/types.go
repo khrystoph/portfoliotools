@@ -68,8 +68,8 @@ type OHLCVDaily struct {
 	Low            float64
 	Close          float64
 	Volume         float64
-	WeightedVolume float64
-	Transactions   int64
+	WeightedVolume *float64
+	Transactions   *int64
 	AdjClose       *float64   // nil when not provided by the source
 	Source         DataSource
 	CreatedAt      time.Time

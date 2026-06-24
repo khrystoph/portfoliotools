@@ -85,4 +85,5 @@ func TestTickerStore_GetBySymbol(t *testing.T) {
 
 	_, err = s.GetBySymbol(ctx, "NOPE", store.AssetClassEquity)
 	assert.Error(t, err, "missing ticker must return error")
+	assert.True(t, store.IsNotFound(err), "missing ticker must satisfy IsNotFound")
 }
