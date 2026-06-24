@@ -100,14 +100,14 @@ func TestOHLCVStore_UpsertBatch_RollsBackOnError(t *testing.T) {
 		{
 			TickerID:  tickerID,
 			TradeDate: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-			Open: 100, High: 105, Low: 98, Close: 102,
+			Open:      100, High: 105, Low: 98, Close: 102,
 			Volume: 500_000,
 			Source: store.SourceAlpaca,
 		},
 		{
 			TickerID:  0, // invalid — FK violation
 			TradeDate: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
-			Open: 100, High: 105, Low: 98, Close: 102,
+			Open:      100, High: 105, Low: 98, Close: 102,
 			Volume: 500_000,
 			Source: store.SourceAlpaca,
 		},
@@ -134,7 +134,7 @@ func TestOHLCVStore_GetRange_ReturnsDescendingOrder(t *testing.T) {
 		require.NoError(t, os.Upsert(ctx, store.OHLCVDaily{
 			TickerID:  tickerID,
 			TradeDate: time.Date(2025, 1, i+1, 0, 0, 0, 0, time.UTC),
-			Open: 100, High: 105, Low: 98, Close: 102,
+			Open:      100, High: 105, Low: 98, Close: 102,
 			Volume: 500_000,
 			Source: store.SourceAlpaca,
 		}))

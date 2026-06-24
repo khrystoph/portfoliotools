@@ -43,8 +43,8 @@ func TestTickerStore_ListActive(t *testing.T) {
 
 	tickers := []store.Ticker{
 		{Symbol: "AAPL", Name: "Apple Inc.", AssetClass: store.AssetClassEquity, PrimarySource: store.SourceAlpaca, Currency: "USD", Active: true},
-		{Symbol: "BTC",  Name: "Bitcoin",    AssetClass: store.AssetClassCrypto,  PrimarySource: store.SourceAlpaca, Currency: "USD", Active: true},
-		{Symbol: "DEAD", Name: "Inactive",   AssetClass: store.AssetClassEquity,  PrimarySource: store.SourceAlpaca, Currency: "USD", Active: false},
+		{Symbol: "BTC", Name: "Bitcoin", AssetClass: store.AssetClassCrypto, PrimarySource: store.SourceAlpaca, Currency: "USD", Active: true},
+		{Symbol: "DEAD", Name: "Inactive", AssetClass: store.AssetClassEquity, PrimarySource: store.SourceAlpaca, Currency: "USD", Active: false},
 	}
 	for _, tk := range tickers {
 		_, err := s.Upsert(ctx, tk)

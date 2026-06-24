@@ -46,7 +46,7 @@ type Ticker struct {
 	ID            int64
 	Symbol        string
 	Name          string
-	ExchangeID    *int32     // nil for assets with no single exchange (crypto, forex, indices)
+	ExchangeID    *int32 // nil for assets with no single exchange (crypto, forex, indices)
 	AssetClassID  int16
 	AssetClass    AssetClass
 	PrimarySource DataSource
@@ -70,7 +70,7 @@ type OHLCVDaily struct {
 	Volume         float64
 	WeightedVolume *float64
 	Transactions   *int64
-	AdjClose       *float64   // nil when not provided by the source
+	AdjClose       *float64 // nil when not provided by the source
 	Source         DataSource
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
