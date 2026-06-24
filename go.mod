@@ -3,7 +3,7 @@ module github.com/khrystoph/portfoliotools
 go 1.24.0
 
 require (
-	github.com/polygon-io/client-go v1.16.4
+	github.com/polygon-io/client-go v1.16.18
 	github.com/xuri/excelize/v2 v2.10.0
 	gonum.org/v1/gonum v0.17.0
 	google.golang.org/appengine v1.6.8
@@ -11,14 +11,14 @@ require (
 )
 
 require (
-	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/go-playground/form/v4 v4.2.1 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.16.0 // indirect
-	github.com/go-resty/resty/v2 v2.11.0 // indirect
+	github.com/go-playground/validator/v10 v10.23.0 // indirect
+	github.com/go-resty/resty/v2 v2.13.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/leodido/go-urn v1.2.4 // indirect
+	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
 	github.com/tiendc/go-deepcopy v1.7.1 // indirect
