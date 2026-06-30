@@ -87,3 +87,88 @@ func TestTickerStore_GetBySymbol(t *testing.T) {
 	assert.Error(t, err, "missing ticker must return error")
 	assert.True(t, store.IsNotFound(err), "missing ticker must satisfy IsNotFound")
 }
+
+func TestTickerStore_GetByFIGI(t *testing.T) {
+	pool := testutil.NewTestDB(t)
+	s := store.NewTickerStore(pool)
+	ctx := context.Background()
+
+	figi := "BBG000B9XRY4"
+	id, err := s.Upsert(ctx, store.Ticker{
+		Symbol: "AAPL", Name: "Apple Inc.",
+		AssetClass: store.AssetClassEquity, PrimarySource: store.SourceAlpaca,
+		Currency: "usd", Active: true, CompositeFIGI: &figi,
+	})
+	require.NoError(t, err)
+
+	got, err := s.GetByFIGI(ctx, figi)
+	require.NoError(t, err)
+	assert.Equal(t, id, got.ID)
+	assert.Equal(t, "AAPL", got.Symbol)
+	require.NotNil(t, got.CompositeFIGI)
+	assert.Equal(t, figi, *got.CompositeFIGI)
+}
+
+func TestTickerStore_ListWithFIGI(t *testing.T) {
+	pool := testutil.NewTestDB(t)
+	s := store.NewTickerStore(pool)
+	ctx := context.Background()
+
+	figi1, figi2 := "BBG000B9XRY4", "BBG000BDTBL9"
+	_, err := s.Upsert(ctx, store.Ticker{Symbol: "AAPL", Name: "Apple Inc.",
+		AssetClass: store.AssetClassEquity, PrimarySource: store.SourceAlpaca,
+		Currency: "usd", Active: true, CompositeFIGI: &figi1})
+	require.NoError(t, err)
+	_, err = s.Upsert(ctx, store.Ticker{Symbol: "SPY", Name: "SPDR S&P 500 ETF Trust",
+		AssetClass: store.AssetClassETF, PrimarySource: store.SourceAlpaca,
+		Currency: "usd", Active: true, CompositeFIGI: &figi2})
+	require.NoError(t, err)
+	_, err = s.Upsert(ctx, store.Ticker{Symbol: "GC=F", Name: "Gold",
+		AssetClass: store.AssetClassCommodity, PrimarySource: store.SourceYahoo,
+		Currency: "usd", Active: true})
+	require.NoError(t, err)
+
+	tickers, err := s.ListWithFIGI(ctx)
+	require.NoError(t, err)
+	assert.Len(t, tickers, 2)
+	symbols := []string{tickers[0].Symbol, tickers[1].Symbol}
+	assert.Contains(t, symbols, "AAPL")
+	assert.Contains(t, symbols, "SPY")
+}
+
+func TestTickerStore_SetPinned(t *testing.T) {
+	pool := testutil.NewTestDB(t)
+	s := store.NewTickerStore(pool)
+	ctx := context.Background()
+
+	id, err := s.Upsert(ctx, store.Ticker{Symbol: "SMOL", Name: "Small Co",
+		AssetClass: store.AssetClassEquity, PrimarySource: store.SourceAlpaca,
+		Currency: "usd", Active: true})
+	require.NoError(t, err)
+
+	require.NoError(t, s.SetPinned(ctx, id, true))
+	got, err := s.GetBySymbol(ctx, "SMOL", store.AssetClassEquity)
+	require.NoError(t, err)
+	assert.True(t, got.IsPinned)
+
+	require.NoError(t, s.SetPinned(ctx, id, false))
+	got, err = s.GetBySymbol(ctx, "SMOL", store.AssetClassEquity)
+	require.NoError(t, err)
+	assert.False(t, got.IsPinned)
+}
+
+func TestTickerStore_DeactivateByID(t *testing.T) {
+	pool := testutil.NewTestDB(t)
+	s := store.NewTickerStore(pool)
+	ctx := context.Background()
+
+	id, err := s.Upsert(ctx, store.Ticker{Symbol: "DEAD", Name: "Dead Corp",
+		AssetClass: store.AssetClassEquity, PrimarySource: store.SourcePolygon,
+		Currency: "usd", Active: true})
+	require.NoError(t, err)
+
+	require.NoError(t, s.DeactivateByID(ctx, id))
+	got, err := s.GetBySymbol(ctx, "DEAD", store.AssetClassEquity)
+	require.NoError(t, err)
+	assert.False(t, got.Active)
+}

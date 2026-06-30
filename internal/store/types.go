@@ -12,6 +12,7 @@ const (
 	AssetClassCommodity AssetClass = "commodity"
 	AssetClassForex     AssetClass = "forex"
 	AssetClassIndex     AssetClass = "index"
+	AssetClassBond      AssetClass = "bond"
 )
 
 // DataSource identifies which data provider supplied a record.
@@ -51,9 +52,12 @@ type Ticker struct {
 	AssetClass    AssetClass
 	PrimarySource DataSource
 	Currency      string
-	Active        bool
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	Active         bool
+	CompositeFIGI  *string
+	ShareClassFIGI *string
+	IsPinned       bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // OHLCVDaily is one day's raw price candle for a ticker.
@@ -86,6 +90,35 @@ type BackfillRun struct {
 	TickersFailed    int
 	ErrorMsg         *string
 	CreatedAt        time.Time
+}
+
+type MigrationReason string
+
+const (
+	MigrationReasonRename        MigrationReason = "rename"
+	MigrationReasonRebranding    MigrationReason = "rebranding"
+	MigrationReasonAcquisition   MigrationReason = "acquisition"
+	MigrationReasonReverseMerger MigrationReason = "reverse_merger"
+)
+
+type MigrationSource string
+
+const (
+	MigrationSourceOpenFIGI      MigrationSource = "openfigi"
+	MigrationSourcePolygonEvents MigrationSource = "polygon_events"
+	MigrationSourceManual        MigrationSource = "manual"
+)
+
+type TickerMigration struct {
+	ID            int64
+	FromTickerID  int64
+	ToTickerID    int64
+	EffectiveDate time.Time
+	Reason        MigrationReason
+	Source        MigrationSource
+	Notes         *string
+	DetectedAt    time.Time
+	CreatedAt     time.Time
 }
 
 // BackfillTickerLog records the outcome for a single ticker within a BackfillRun.

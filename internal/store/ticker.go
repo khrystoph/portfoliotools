@@ -25,22 +25,26 @@ func NewTickerStore(db *pgxpool.Pool) *TickerStore {
 func (s *TickerStore) Upsert(ctx context.Context, t Ticker) (int64, error) {
 	var id int64
 	err := s.db.QueryRow(ctx, `
-		INSERT INTO tickers (symbol, name, asset_class_id, primary_source, currency, active)
+		INSERT INTO tickers (symbol, name, asset_class_id, primary_source, currency, active,
+		                     composite_figi, share_class_figi, is_pinned)
 		VALUES (
 			$1, $2,
 			(SELECT id FROM asset_classes WHERE name = $3),
-			$4, $5, $6
+			$4, $5, $6, $7, $8, $9
 		)
 		ON CONFLICT (symbol, asset_class_id)
 		DO UPDATE SET
-			name           = EXCLUDED.name,
-			primary_source = EXCLUDED.primary_source,
-			currency       = EXCLUDED.currency,
-			active         = EXCLUDED.active,
-			updated_at     = NOW()
+			name             = EXCLUDED.name,
+			primary_source   = EXCLUDED.primary_source,
+			currency         = EXCLUDED.currency,
+			active           = EXCLUDED.active,
+			composite_figi   = COALESCE(EXCLUDED.composite_figi, tickers.composite_figi),
+			share_class_figi = COALESCE(EXCLUDED.share_class_figi, tickers.share_class_figi),
+			updated_at       = NOW()
 		RETURNING id`,
 		t.Symbol, t.Name, string(t.AssetClass),
 		string(t.PrimarySource), t.Currency, t.Active,
+		t.CompositeFIGI, t.ShareClassFIGI, t.IsPinned,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("upsert ticker %s: %w", t.Symbol, err)
@@ -53,7 +57,9 @@ func (s *TickerStore) Upsert(ctx context.Context, t Ticker) (int64, error) {
 func (s *TickerStore) ListActive(ctx context.Context, class AssetClass) ([]Ticker, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT t.id, t.symbol, t.name, t.exchange_id, t.asset_class_id,
-		       ac.name, t.primary_source, t.currency, t.active, t.created_at, t.updated_at
+		       ac.name, t.primary_source, t.currency, t.active,
+		       t.composite_figi, t.share_class_figi, t.is_pinned,
+		       t.created_at, t.updated_at
 		FROM tickers t
 		JOIN asset_classes ac ON ac.id = t.asset_class_id
 		WHERE t.active = TRUE
@@ -72,7 +78,9 @@ func (s *TickerStore) ListActive(ctx context.Context, class AssetClass) ([]Ticke
 		var acName, src string
 		if err := rows.Scan(
 			&tk.ID, &tk.Symbol, &tk.Name, &tk.ExchangeID, &tk.AssetClassID,
-			&acName, &src, &tk.Currency, &tk.Active, &tk.CreatedAt, &tk.UpdatedAt,
+			&acName, &src, &tk.Currency, &tk.Active,
+			&tk.CompositeFIGI, &tk.ShareClassFIGI, &tk.IsPinned,
+			&tk.CreatedAt, &tk.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan ticker row: %w", err)
 		}
@@ -90,14 +98,18 @@ func (s *TickerStore) GetBySymbol(ctx context.Context, symbol string, class Asse
 	var acName, src string
 	err := s.db.QueryRow(ctx, `
 		SELECT t.id, t.symbol, t.name, t.exchange_id, t.asset_class_id,
-		       ac.name, t.primary_source, t.currency, t.active, t.created_at, t.updated_at
+		       ac.name, t.primary_source, t.currency, t.active,
+		       t.composite_figi, t.share_class_figi, t.is_pinned,
+		       t.created_at, t.updated_at
 		FROM tickers t
 		JOIN asset_classes ac ON ac.id = t.asset_class_id
 		WHERE t.symbol = $1 AND ac.name = $2`,
 		symbol, string(class),
 	).Scan(
 		&tk.ID, &tk.Symbol, &tk.Name, &tk.ExchangeID, &tk.AssetClassID,
-		&acName, &src, &tk.Currency, &tk.Active, &tk.CreatedAt, &tk.UpdatedAt,
+		&acName, &src, &tk.Currency, &tk.Active,
+		&tk.CompositeFIGI, &tk.ShareClassFIGI, &tk.IsPinned,
+		&tk.CreatedAt, &tk.UpdatedAt,
 	)
 	if err != nil {
 		return Ticker{}, fmt.Errorf("get ticker %s (%s): %w", symbol, class, err)
@@ -111,4 +123,86 @@ func (s *TickerStore) GetBySymbol(ctx context.Context, symbol string, class Asse
 // distinguish "not found" from other database errors.
 func IsNotFound(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows)
+}
+
+func (s *TickerStore) GetByFIGI(ctx context.Context, figi string) (Ticker, error) {
+	var tk Ticker
+	var acName, src string
+	err := s.db.QueryRow(ctx, `
+		SELECT t.id, t.symbol, t.name, t.exchange_id, t.asset_class_id,
+		       ac.name, t.primary_source, t.currency, t.active,
+		       t.composite_figi, t.share_class_figi, t.is_pinned,
+		       t.created_at, t.updated_at
+		FROM tickers t
+		JOIN asset_classes ac ON ac.id = t.asset_class_id
+		WHERE t.composite_figi = $1`,
+		figi,
+	).Scan(
+		&tk.ID, &tk.Symbol, &tk.Name, &tk.ExchangeID, &tk.AssetClassID,
+		&acName, &src, &tk.Currency, &tk.Active,
+		&tk.CompositeFIGI, &tk.ShareClassFIGI, &tk.IsPinned,
+		&tk.CreatedAt, &tk.UpdatedAt,
+	)
+	if err != nil {
+		return Ticker{}, fmt.Errorf("get ticker by FIGI %s: %w", figi, err)
+	}
+	tk.AssetClass = AssetClass(acName)
+	tk.PrimarySource = DataSource(src)
+	return tk, nil
+}
+
+func (s *TickerStore) ListWithFIGI(ctx context.Context) ([]Ticker, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT t.id, t.symbol, t.name, t.exchange_id, t.asset_class_id,
+		       ac.name, t.primary_source, t.currency, t.active,
+		       t.composite_figi, t.share_class_figi, t.is_pinned,
+		       t.created_at, t.updated_at
+		FROM tickers t
+		JOIN asset_classes ac ON ac.id = t.asset_class_id
+		WHERE t.composite_figi IS NOT NULL
+		ORDER BY t.symbol`)
+	if err != nil {
+		return nil, fmt.Errorf("list tickers with FIGI: %w", err)
+	}
+	defer rows.Close()
+
+	var tickers []Ticker
+	for rows.Next() {
+		var tk Ticker
+		var acName, src string
+		if err := rows.Scan(
+			&tk.ID, &tk.Symbol, &tk.Name, &tk.ExchangeID, &tk.AssetClassID,
+			&acName, &src, &tk.Currency, &tk.Active,
+			&tk.CompositeFIGI, &tk.ShareClassFIGI, &tk.IsPinned,
+			&tk.CreatedAt, &tk.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan ticker row: %w", err)
+		}
+		tk.AssetClass = AssetClass(acName)
+		tk.PrimarySource = DataSource(src)
+		tickers = append(tickers, tk)
+	}
+	return tickers, rows.Err()
+}
+
+func (s *TickerStore) SetPinned(ctx context.Context, id int64, pinned bool) error {
+	_, err := s.db.Exec(ctx,
+		`UPDATE tickers SET is_pinned = $1, updated_at = NOW() WHERE id = $2`,
+		pinned, id,
+	)
+	if err != nil {
+		return fmt.Errorf("set pinned ticker %d: %w", id, err)
+	}
+	return nil
+}
+
+func (s *TickerStore) DeactivateByID(ctx context.Context, id int64) error {
+	_, err := s.db.Exec(ctx,
+		`UPDATE tickers SET active = FALSE, updated_at = NOW() WHERE id = $1`,
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("deactivate ticker %d: %w", id, err)
+	}
+	return nil
 }
