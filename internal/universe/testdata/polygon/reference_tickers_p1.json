@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "market": "stocks",
+      "type": "CS",
+      "currency_name": "usd",
+      "market_cap": 3000000000000.0,
+      "composite_figi": "BBG000B9XRY4",
+      "share_class_figi": "BBG001S5N8V8",
+      "active": true,
+      "primary_exchange": "XNAS"
+    }
+  ],
+  "status": "OK",
+  "next_url": "PLACEHOLDER_REPLACED_IN_TEST",
+  "count": 1
+}

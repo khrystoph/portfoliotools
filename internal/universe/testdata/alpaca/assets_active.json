@@ -1,0 +1,4 @@
+[
+  {"id": "a1b2c3d4-0001-0001-0001-000000000001", "class": "us_equity", "symbol": "AAPL", "name": "Apple Inc.", "status": "active", "exchange": "NASDAQ"},
+  {"id": "a1b2c3d4-0001-0001-0001-000000000002", "class": "us_equity", "symbol": "SPY",  "name": "SPDR S&P 500 ETF Trust", "status": "active", "exchange": "NYSE"}
+]

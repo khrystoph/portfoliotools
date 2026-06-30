@@ -1,0 +1,15 @@
+{
+  "results": {
+    "ticker": "BBBY",
+    "name": "Beyond Inc.",
+    "market": "stocks",
+    "type": "CS",
+    "currency_name": "usd",
+    "market_cap": 200000000.0,
+    "composite_figi": "BBG00BBBY001",
+    "share_class_figi": "BBG00BBBY002",
+    "active": true,
+    "primary_exchange": "XNAS"
+  },
+  "status": "OK"
+}

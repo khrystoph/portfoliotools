@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "ticker": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "market": "stocks",
+      "type": "ETF",
+      "currency_name": "usd",
+      "market_cap": 500000000000.0,
+      "composite_figi": "BBG000BDTBL9",
+      "share_class_figi": "BBG001S5UEY7",
+      "active": true,
+      "primary_exchange": "ARCX"
+    }
+  ],
+  "status": "OK",
+  "count": 1
+}
