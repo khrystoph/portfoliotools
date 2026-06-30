@@ -44,8 +44,10 @@ release:
 	tar czvf bin/portfoliotools.linux-arm64.tar.gz bin/currentreturn-linux-arm64 bin/stockclient-linux-arm64 bin/targetreturn-linux-arm64
 
 test:
-	go vet ./...
-	go test -v ./pkg/
+	GOWORK=off go vet ./... && GOWORK=off go test -v -timeout 180s ./internal/... ./cmd/...
+
+build-sync:
+	go build -o bin/syncTickers ./cmd/syncTickers/
 
 clean:
 	go clean
