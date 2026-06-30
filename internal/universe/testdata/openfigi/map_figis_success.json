@@ -1,0 +1,16 @@
+[
+  {
+    "data": [
+      {
+        "figi": "BBG001S52PP9",
+        "compositeFigi": "BBG000B9XRY4",
+        "shareClassFIGI": "BBG001S5N8V8",
+        "ticker": "AAPL",
+        "exchCode": "US",
+        "name": "APPLE INC",
+        "marketSector": "Equity",
+        "securityType": "Common Stock"
+      }
+    ]
+  }
+]
